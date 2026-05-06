@@ -400,50 +400,11 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
 }
 
 
-/* ── SCROLL VERTICAL LATERAL ─────────────────────────────────*/
-.nav-vertical {
-  position: fixed;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 200;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.nav-v-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 20px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all .15s;
-  box-shadow: 0 2px 8px rgba(0,0,0,.35);
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-}
-.nav-v-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
-.nav-v-btn:active { transform: scale(0.92); }
-@media (max-width: 480px) {
-  .nav-vertical { right: 6px; }
-  .nav-v-btn { width: 36px; height: 36px; font-size: 18px; }
-}
-
 </style>
 </head>
 <body>
 
-<!-- ── SCROLL VERTICAL LATERAL ─────────────────────────────────-->
-<div class="nav-vertical" id="nav-vertical">
-  <button class="nav-v-btn" onclick="scrollSeccion('up')" title="Subir">▲</button>
-  <button class="nav-v-btn" onclick="scrollSeccion('down')" title="Bajar">▼</button>
-</div>
+
 
 
 
@@ -2598,8 +2559,14 @@ function guardarRegistro() {
   // Recoger estado del día y causas
   // Lectura robusta del radio — funciona aunque el checked sea solo atributo HTML
   const estadoRadios = document.querySelectorAll('input[name="f-estado"]');
-  let estadoDia = 'OPERÓ';
-  estadoRadios.forEach(r => { if (r.checked) estadoDia = r.value; });
+  let estadoDia = 'OPERÓ'; // default siempre OPERÓ
+  let estadoChecked = false;
+  estadoRadios.forEach(r => { if (r.checked) { estadoDia = r.value; estadoChecked = true; } });
+  // Si ninguno marcado por interacción del usuario, marcar el primero (OPERÓ) explícitamente
+  if (!estadoChecked) {
+    const primerRadio = document.querySelector('input[name="f-estado"][value="OPERÓ"]');
+    if (primerRadio) primerRadio.checked = true;
+  }
   const causas = [...document.querySelectorAll('.f-causa:checked')].map(cb => cb.value);
   const hTier  = parseFloat(document.getElementById('f-htier').value) || 0;
 
@@ -3918,28 +3885,6 @@ function cerrarModalMesNuevo() {
 })();
 
 
-
-// ── Scroll vertical dentro de la página ───────────────────────
-function scrollSeccion(dir) {
-  var amount = dir === 'up' ? -280 : 280;
-  // Intentar primero scroll-area, luego view activo, luego window
-  var el = document.querySelector('.scroll-area');
-  var scrolled = false;
-  if (el && el.scrollHeight > el.clientHeight) {
-    el.scrollBy({ top: amount, behavior: 'smooth' });
-    scrolled = true;
-  }
-  if (!scrolled) {
-    var view = document.querySelector('.view.active');
-    if (view && view.scrollHeight > view.clientHeight) {
-      view.scrollBy({ top: amount, behavior: 'smooth' });
-      scrolled = true;
-    }
-  }
-  if (!scrolled) {
-    window.scrollBy({ top: amount, behavior: 'smooth' });
-  }
-}
 
 
 // ── Pre-cargar instructores al inicio ────────────────────────
