@@ -2702,6 +2702,23 @@ function guardarRegistro() {
     FUEL_NIVEL[baseReg] = despues;
     localStorage.setItem('fuel_nivel_inicial', JSON.stringify(FUEL_NIVEL));
 
+    // ── Enviar consumo al GS (hoja Combustible) ────────────────
+    enviarASheets({
+      tipo:      'combustible',
+      fecha:     keyStr,
+      hora:      new Date().toTimeString().slice(0,5),
+      base:      baseReg,
+      heli:      lastReg.heli || '',
+      mat:       lastReg.mat  || '',
+      gls:       0,
+      drenaje:   0,
+      consumo:   glsConsumidos,
+      nivelAnt:  Math.round(antes),
+      nivelPost: Math.round(despues),
+      ref:       `Consumo vuelos ${lastReg.heli||''}`,
+      obs:       ''
+    });
+
     // Registrar el movimiento en el historial de combustible
     const ahora = new Date();
     FUEL_ENTRADAS.unshift({
@@ -2911,34 +2928,67 @@ function renderFuelTanks() {
 }
 
 function registrarCombustible() {
-  const base = document.getElementById('fc-base').value;
-  const gls  = parseFloat(document.getElementById('fc-gls').value);
-  const ref  = document.getElementById('fc-ref').value.trim();
-  const msg  = document.getElementById('fc-msg');
+  const base    = document.getElementById('fc-base').value;
+  const gls     = parseFloat(document.getElementById('fc-gls').value) || 0;
+  const drenaje = parseFloat(document.getElementById('fc-drenaje').value) || 0;
+  const ref     = document.getElementById('fc-ref').value.trim();
+  const msg     = document.getElementById('fc-msg');
 
-  if (!gls || gls <= 0) {
+  if (gls <= 0 && drenaje <= 0) {
     msg.style.color = 'var(--red)';
-    msg.textContent = 'Ingresa la cantidad de GLS recibidos';
+    msg.textContent = 'Ingresa la cantidad de GLS recibidos o drenados';
     return;
   }
 
-  const ahora  = new Date();
-  const fecha  = dkey(ahora);
-  const hora   = ahora.toTimeString().slice(0, 5);
-  const cap    = CAPS[base] || 9999;
-  const antes  = nivelActual(base);
-  const despues = Math.min(antes + gls, cap);
+  const ahora   = new Date();
+  const fecha   = dkey(ahora);
+  const hora    = ahora.toTimeString().slice(0, 5);
+  const cap     = CAPS[base] || 9999;
+  const antes   = nivelActual(base);
+  // Sumar reabastecimiento y restar drenaje
+  const despues = Math.min(Math.max(0, antes + gls - drenaje), cap);
 
   FUEL_NIVEL[base] = despues;
-  FUEL_ENTRADAS.unshift({ fecha, hora, base, gls, ref });
+  localStorage.setItem('fuel_nivel_inicial', JSON.stringify(FUEL_NIVEL));
 
-  document.getElementById('fc-gls').value = '';
-  document.getElementById('fc-ref').value = '';
+  // Registrar en historial local
+  if (gls > 0) {
+    FUEL_ENTRADAS.unshift({ fecha, hora, base, gls: +gls, ref, tipo: 'reabastecimiento' });
+  }
+  if (drenaje > 0) {
+    FUEL_ENTRADAS.unshift({ fecha, hora, base, gls: -drenaje, ref: 'Drenaje', tipo: 'drenaje' });
+  }
+  localStorage.setItem('fuel_entradas', JSON.stringify(FUEL_ENTRADAS));
+
+  // ── Enviar al GS (hoja Combustible) ──────────────────────────
+  const payloadReab = {
+    tipo:     'combustible',
+    fecha:    fecha,
+    hora:     hora,
+    base:     base,
+    heli:     '',
+    mat:      '',
+    gls:      +gls,
+    drenaje:  +drenaje,
+    nivelAnt: Math.round(antes),
+    nivelPost:Math.round(despues),
+    ref:      ref,
+    obs:      drenaje > 0 ? `Drenaje: ${drenaje} GLS` : ''
+  };
+  enviarASheets(payloadReab);
+
+  // Limpiar campos
+  document.getElementById('fc-gls').value     = '';
+  document.getElementById('fc-drenaje').value = '';
+  document.getElementById('fc-ref').value     = '';
 
   const pct = Math.round(despues / cap * 100);
+  const msg_parts = [];
+  if (gls > 0)     msg_parts.push(`+${Number(gls).toLocaleString('es-CO')} GLS reabastecidos`);
+  if (drenaje > 0) msg_parts.push(`-${Number(drenaje).toLocaleString('es-CO')} GLS drenados`);
   msg.style.color = 'var(--green)';
-  msg.textContent = `✓ ${base}: +${Number(gls).toLocaleString('es-CO')} GLS → ${Math.round(despues).toLocaleString('es-CO')} GLS (${pct}%)`;
-  setTimeout(() => { msg.textContent = ''; }, 4000);
+  msg.textContent = `✓ ${base}: ${msg_parts.join(' · ')} → ${Math.round(despues).toLocaleString('es-CO')} GLS (${pct}%)`;
+  setTimeout(() => { msg.textContent = ''; }, 5000);
 
   renderFuelTanks();
   renderFuelLog();
