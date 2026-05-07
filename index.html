@@ -519,6 +519,7 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
 
 <!-- DASHBOARD -->
 <div class="view active" id="view-dashboard">
+<div style="text-align:right;padding:2px 14px 0;"><span id="gs-sync-badge" style="font-size:10px;color:var(--muted);font-family:var(--mono);cursor:pointer" onclick="syncConGS()" title="Toca para sincronizar">⬤ GS --:--</span></div>
 
   <!-- ① HORAS TOTALES MES — Hero card -->
   <div style="background:linear-gradient(135deg,#e53e3e,#c53030);border-radius:14px;padding:16px 18px;margin-bottom:12px">
@@ -1317,6 +1318,7 @@ const HISTORICO_EMBEBIDO = {};
 (function() {
   // Sin histórico embebido — mayo 2026 inicia limpio
 })();
+var GS_DATA = null;
 let STORE=(function(){
   try{
     const s=localStorage.getItem('opsdata');
@@ -1332,7 +1334,11 @@ let STORE=(function(){
 })();
 
 // ── State ──
-let cur = new Date(2026,4,1,12,0,0); // Mayo 2026 — inicio limpio
+let cur = (function() {
+  var hoy = new Date();
+  hoy.setHours(12,0,0,0);
+  return hoy;
+})();
 
 
 // ── Helpers ──
@@ -1372,7 +1378,7 @@ function updateDate(){
 }
 function changeDay(d){
   const n=new Date(cur); n.setDate(n.getDate()+d); cur=n;
-  updateDate(); refreshAll();
+  updateDate(); refreshAll(); iniciarSyncGS();
 }
 
 // ── Tabs ──
@@ -1492,6 +1498,38 @@ function renderDashboard(){
   const fmtKg = kg => kg>=1000 ? (kg/1000).toFixed(1)+'t' : kg.toLocaleString()+' kg';
 
   // ─ Label mes ─
+  // ── Merge GS ─────────────────────────────────────────────────────
+  if (GS_DATA && Array.isArray(GS_DATA.vuelos) && GS_DATA.vuelos.length > 0) {
+    var fechaHoyGS = dkey(cur);
+    var mesPfxGS = fechaHoyGS.slice(0,7);
+    var gsHoy = GS_DATA.vuelos.filter(function(v){ return v.fecha === fechaHoyGS; });
+    if (gsHoy.length > hoy.segs) {
+      hoy.segs = gsHoy.length;
+      hoy.hrs  = gsHoy.reduce(function(a,v){ return a+(v.hrs||0); },0);
+      hoy.pax  = gsHoy.reduce(function(a,v){ return a+(v.pax||0); },0);
+      hoy.kg   = gsHoy.reduce(function(a,v){ return a+(v.ll||0)+(v.carga||0); },0);
+      hoy.fuel = gsHoy.reduce(function(a,v){ return a+(v.gls||0); },0);
+    }
+    var gsMes = GS_DATA.vuelos.filter(function(v){ return v.fecha && v.fecha.startsWith(mesPfxGS); });
+    if (gsMes.length > mes.segs) {
+      mes.segs = gsMes.length;
+      mes.hrs  = gsMes.reduce(function(a,v){ return a+(v.hrs||0); },0);
+      mes.pax  = gsMes.reduce(function(a,v){ return a+(v.pax||0); },0);
+      mes.kg   = gsMes.reduce(function(a,v){ return a+(v.ll||0)+(v.carga||0); },0);
+      mes.fuel = gsMes.reduce(function(a,v){ return a+(v.gls||0); },0);
+      var maxProg = 0, maxCumpl = 0;
+      gsMes.forEach(function(v){ if(v.prog>maxProg) maxProg=v.prog; if(v.cumpl>maxCumpl) maxCumpl=v.cumpl; });
+      if (maxProg > mes.prog) { mes.prog = maxProg; mes.cumpl = maxCumpl; }
+      gsMes.forEach(function(v) {
+        var hk = v.heli || 'Sin tipo';
+        if (!mes.porHeli[hk]) mes.porHeli[hk] = {hrs:0,segs:0,pax:0,kg:0,mat:v.mat||''};
+        mes.porHeli[hk].hrs  += v.hrs||0;
+        mes.porHeli[hk].segs += 1;
+        mes.porHeli[hk].pax  += v.pax||0;
+        mes.porHeli[hk].kg   += (v.ll||0)+(v.carga||0);
+      });
+    }
+  }
   document.getElementById('dash-mes-label').textContent =
     nombreMes.charAt(0).toUpperCase()+nombreMes.slice(1)+' — Acumulado';
 
@@ -2458,7 +2496,7 @@ function addVuelo() {
     <div class="f2" style="margin-bottom:9px">
       <div class="frow" style="margin-bottom:0">
         <label>Origen</label>
-        <select class="v-origen" style="width:100%">
+        <select class="v-origen" style="width:100%" onchange="validarRuta(this)">
           <option value="">— seleccionar —</option>
           <optgroup label="Bases">
             <option value="Frontino">Frontino</option>
@@ -2480,7 +2518,7 @@ function addVuelo() {
     <div class="f2" style="margin-bottom:9px">
       <div class="frow" style="margin-bottom:0">
         <label>Destino</label>
-        <select class="v-base" style="width:100%">
+        <select class="v-base" style="width:100%" onchange="validarRuta(this)">
           <option value="">— seleccionar —</option>
           <optgroup label="Bases">
             <option value="Frontino">Frontino</option>
@@ -2524,6 +2562,8 @@ function addVuelo() {
   // Inicializar visibilidad
   actualizarCamposVuelo(div.querySelector('.v-tipo'));
   el.appendChild(div);
+  var tipoSel = div.querySelector('.v-tipo');
+  if (tipoSel) actualizarCamposVuelo(tipoSel);
   recalcFTL();
 }
 
@@ -2549,7 +2589,7 @@ function guardarRegistro() {
       ini, fin, hrs: Math.round(hrs*100)/100,
       origen: item.querySelector('.v-origen')?.value || '',
       pax:   parseInt(item.querySelector('.v-pax').value)||0,
-      ll:    parseInt(item.querySelector('.v-ll').value)||0,
+      ll:    Math.round(parseFloat(item.querySelector('.v-ll').value)||0),
       carga: parseInt(item.querySelector('.v-carga').value)||0,
       base: item.querySelector('.v-base')?.value || document.getElementById('f-base').value,
       fuel_loc: item.querySelector('.v-base')?.value || document.getElementById('f-base').value
@@ -3499,7 +3539,24 @@ function agregarBloqueHeli() {
           </div>
         </div>
         <div class="frow"><label>Piloto(s)</label>
-          <input type="text" id="b${n}-piloto" placeholder="Ej: López / Cruz">
+          <select id="b${n}-piloto" style="width:100%">
+            <option value="">— seleccionar piloto —</option>
+          </select>
+        </div>
+        <div class="frow"><label>Copiloto</label>
+          <select id="b${n}-copiloto" style="width:100%">
+            <option value="N/A">N/A — Single pilot</option>
+          </select>
+        </div>
+        <div class="frow"><label>Piloto Instructor</label>
+          <select id="b${n}-instructor" style="width:100%">
+            <option value="N/A">N/A — Sin instructor</option>
+            <option value="Lara">Lara</option>
+            <option value="Barbesi">Barbesi</option>
+            <option value="Cruz">Cruz</option>
+            <option value="Sandoval">Sandoval</option>
+            <option value="Díaz">Díaz</option>
+          </select>
         </div>
         <div class="f2">
           <div class="frow" style="margin-bottom:0"><label>Duty IN</label>
@@ -3507,6 +3564,7 @@ function agregarBloqueHeli() {
           </div>
           <div class="frow" style="margin-bottom:0"><label>Duty OUT</label>
             <input type="time" id="b${n}-dout" value="16:00">
+            <span style="font-size:11px;color:#d69e2e;display:block;margin-top:3px">⏱ Completar al finalizar el día</span>
           </div>
         </div>
       </div>
@@ -3537,6 +3595,28 @@ function agregarBloqueHeli() {
   `;
 
   container.appendChild(div);
+  // Precargar todos los pilotos disponibles (antes de seleccionar aeronave)
+  var allPilotos = [];
+  Object.values(PILOTOS).forEach(function(r){ r.pilotos.forEach(function(p){ if(allPilotos.indexOf(p)===-1) allPilotos.push(p); }); });
+  allPilotos.sort();
+  var fpil = document.getElementById('b'+n+'-piloto');
+  if (fpil) {
+    fpil.innerHTML = '<option value="">— seleccionar piloto —</option>' +
+      allPilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+  }
+  // Precargar copilotos Bell 412 por defecto
+  var fcop = document.getElementById('b'+n+'-copiloto');
+  if (fcop) {
+    // Precargar todos los pilotos disponibles como copilotos (antes de seleccionar aeronave)
+    var allCops = [];
+    Object.values(PILOTOS).forEach(function(r) {
+      r.pilotos.forEach(function(p){ if(allCops.indexOf(p)===-1) allCops.push(p); });
+      r.copilotos.forEach(function(p){ if(allCops.indexOf(p)===-1) allCops.push(p); });
+    });
+    allCops.sort();
+    fcop.innerHTML = '<option value="N/A">N/A — Single pilot</option>' +
+      allCops.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+  }
   // Scroll al nuevo bloque
   setTimeout(() => div.scrollIntoView({behavior:'smooth', block:'start'}), 100);
 }
@@ -3558,7 +3638,7 @@ function addVueloBloque(n) {
     <div class="f2" style="margin-bottom:9px">
       <div class="frow" style="margin-bottom:0">
         <label>Origen</label>
-        <select class="v-origen" style="width:100%">
+        <select class="v-origen" style="width:100%" onchange="validarRuta(this)">
           <option value="">— seleccionar —</option>
           <optgroup label="Bases">
             <option value="Frontino">Frontino</option>
@@ -3580,7 +3660,7 @@ function addVueloBloque(n) {
     <div class="f2" style="margin-bottom:9px">
       <div class="frow" style="margin-bottom:0">
         <label>Destino</label>
-        <select class="v-base" style="width:100%">
+        <select class="v-base" style="width:100%" onchange="validarRuta(this)">
           <option value="">— seleccionar —</option>
           <optgroup label="Bases">
             <option value="Frontino">Frontino</option>
@@ -3601,32 +3681,69 @@ function addVueloBloque(n) {
     </div>
     <div class="frow" style="margin-bottom:9px">
       <label>Tipo de operación</label>
-      <select class="v-tipo">
-        <option value="ll">Línea larga (carga externa)</option>
-        <option value="interna">Carga interna / equipaje</option>
-        <option value="pax">Pasajeros</option>
-        <option value="mixto">Mixto (pax + carga)</option>
-        <option value="ferri">Ferri / posicionamiento</option>
-        <option value="rotacion">Rotación interna</option>
+      <select class="v-tipo" onchange="actualizarCamposVuelo(this)">
+        <option value="ll">🪝 Línea larga (carga externa)</option>
+        <option value="interna">📦 Carga interna / equipaje</option>
+        <option value="pax">👤 Pasajeros</option>
+        <option value="mixto">👤📦 Mixto (pax + carga interna)</option>
+        <option value="ferri">↗ Ferri / posicionamiento</option>
       </select>
     </div>
-    <div class="f2" style="margin-bottom:9px">
-      <div class="frow" style="margin-bottom:0"><label>PAX</label><input type="number" class="v-pax" placeholder="0" min="0"></div>
-      <div class="frow" style="margin-bottom:0"><label>Línea larga (kg)</label><input type="number" class="v-ll" placeholder="0" min="0"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px">
+      <div class="v-campo-ll">
+        <div class="frow" style="margin-bottom:0"><label>Línea larga (kg)</label><input type="number" class="v-ll" placeholder="0" min="0"></div>
+      </div>
+      <div class="v-campo-ci" style="display:none">
+        <div class="frow" style="margin-bottom:0"><label>Carga interna / equipaje (kg)</label><input type="number" class="v-carga" placeholder="0" min="0"></div>
+      </div>
+      <div class="v-campo-pax" style="display:none">
+        <div class="frow" style="margin-bottom:0"><label>Pasajeros</label><input type="number" class="v-pax" placeholder="0" min="0"></div>
+      </div>
     </div>
-    <div class="f2">
-      <div class="frow" style="margin-bottom:0"><label>Carga interna (kg)</label><input type="number" class="v-carga" placeholder="0" min="0"></div>
-      <div class="frow" style="margin-bottom:0"><label>Tanqueo en este vuelo (gls)</label><input type="number" class="v-gls" placeholder="0" min="0"></div>
-    </div>
+    <div class="frow" style="margin-bottom:0"><label>Tanqueo en este vuelo (gls)</label><input type="number" class="v-gls" placeholder="0" min="0"></div>
   `;
   el.appendChild(div);
+  // Aplicar filtro de tipo al crear (igual que addVuelo principal)
+  actualizarCamposVuelo(div.querySelector('.v-tipo'));
 }
 
 
 function actualizarMatBloque(sel, matId) {
-  // Solo actualiza visualmente — la mat viene del value del select
-}
+  var val = sel.value || '';
+  var heli = val.split('|')[0];
+  var roster = PILOTOS[heli] || { pilotos: [], copilotos: [], instructores: [] };
+  var match = sel.id ? sel.id.match(/^b(\d+)-heli$/) : null;
+  if (!match) return;
+  var n = match[1];
 
+  // Pilotos
+  var fpil = document.getElementById('b'+n+'-piloto');
+  if (fpil) {
+    var pilotos = roster.pilotos.length ? roster.pilotos
+      : [].concat.apply([], Object.values(PILOTOS).map(function(r){ return r.pilotos; }))
+          .filter(function(v,i,a){ return a.indexOf(v)===i; }).sort();
+    fpil.innerHTML = '<option value="">— seleccionar piloto —</option>' +
+      pilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+  }
+
+  // Copilotos
+  var fcop = document.getElementById('b'+n+'-copiloto');
+  if (fcop) {
+    var copilotos = (heli === 'BELL 412' && roster.copilotos.length) ? roster.copilotos
+      : (roster.pilotos.length ? roster.pilotos : ['Fierro','Rivera']);
+    fcop.innerHTML = '<option value="N/A">N/A — Single pilot</option>' +
+      copilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+  }
+
+  // Instructor
+  var fins = document.getElementById('b'+n+'-instructor');
+  if (fins) {
+    var instructores = roster.instructores && roster.instructores.length
+      ? roster.instructores : ['Lara','Barbesi','Cruz','Sandoval','Díaz'];
+    fins.innerHTML = '<option value="N/A">N/A — Sin instructor</option>' +
+      instructores.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+  }
+}
 function guardarBloque(n) {
   const heliVal = document.getElementById('b'+n+'-heli').value;
   if (!heliVal) { mostrarToast('Selecciona el helicóptero adicional','err'); return; }
@@ -3937,6 +4054,65 @@ function initInstructorSelect() {
     instructores.map(function(p) { return '<option value="'+p+'">'+p+'</option>'; }).join('');
 }
 
+
+
+// ══ SYNC EN TIEMPO REAL ══════════════════════════════════════════
+function syncConGS() {
+  if (window.location.protocol !== 'https:') return;
+  if (!GS_URL || GS_URL.includes('PEGAR_URL')) return;
+  var mes = cur.toISOString().slice(0,7);
+  var ctrl = new AbortController();
+  setTimeout(function(){ ctrl.abort(); }, 8000);
+  fetch(GS_URL + '?action=mes&mes=' + mes, {
+    mode: 'cors', redirect: 'follow', signal: ctrl.signal
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data) {
+    if (!data || !Array.isArray(data.vuelos)) return;
+    GS_DATA = data;
+    var el = document.getElementById('gs-sync-badge');
+    if (el) {
+      var t = new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+      el.textContent = '⬤ GS ' + t;
+      el.style.color = 'var(--green)';
+    }
+    var dash = document.getElementById('view-dashboard');
+    if (dash && dash.classList.contains('active')) renderDashboard();
+  })
+  .catch(function() {
+    var el = document.getElementById('gs-sync-badge');
+    if (el) { el.textContent = '⬤ GS off'; el.style.color = 'var(--muted)'; }
+  });
+}
+
+function iniciarSyncGS() {
+  setTimeout(syncConGS, 2000);
+  setInterval(syncConGS, 5 * 60 * 1000);
+}
+
+
+// ── Validar que origen ≠ destino ─────────────────────────────────
+function validarRuta(sel) {
+  var item = sel.closest('.vuelo-item');
+  if (!item) return;
+  var origen  = item.querySelector('.v-origen');
+  var destino = item.querySelector('.v-base');
+  if (!origen || !destino) return;
+  if (origen.value && destino.value && origen.value === destino.value) {
+    // Warning visual
+    var warn = item.querySelector('.ruta-warn');
+    if (!warn) {
+      warn = document.createElement('div');
+      warn.className = 'ruta-warn';
+      warn.style.cssText = 'color:#e53e3e;font-size:11px;font-weight:600;margin-top:4px;padding:6px 10px;background:rgba(229,62,62,0.1);border-radius:6px;border:1px solid rgba(229,62,62,0.3)';
+      warn.textContent = '⚠ Origen y destino no pueden ser iguales';
+      destino.parentElement.appendChild(warn);
+    }
+  } else {
+    var warn = item.querySelector('.ruta-warn');
+    if (warn) warn.remove();
+  }
+}
 
 </script>
 
