@@ -1823,10 +1823,29 @@ function renderBitacora(){
   const el = document.getElementById('bitacora-list');
   const mesActual = cur.toISOString().slice(0,7);
 
-  // Recoger todos los días del mes con datos, ordenados desc (más reciente primero)
-  const diasConDatos = Object.entries(STORE)
+  // Combinar STORE local con GS_DATA (datos de todos los SOAs)
+  const storeMap = {};
+  Object.entries(STORE)
     .filter(([fecha, dayObj]) => dayObj.registros?.length)
-    .sort((a, b) => b[0].localeCompare(a[0])); // más reciente primero
+    .forEach(([fecha, dayObj]) => { storeMap[fecha] = dayObj; });
+
+  // Agregar días del GS que no están en STORE local
+  if (GS_DATA && Array.isArray(GS_DATA.vuelos)) {
+    GS_DATA.vuelos.forEach(v => {
+      if (!v.fecha || !v.fecha.startsWith(mesActual)) return;
+      if (!storeMap[v.fecha]) {
+        // Crear entrada sintética para días del GS no en local
+        storeMap[v.fecha] = {
+          registros: [],
+          _fromGS: true
+        };
+      }
+    });
+  }
+
+  // Ordenar días desc
+  const diasConDatos = Object.entries(storeMap)
+    .sort((a, b) => b[0].localeCompare(a[0]));
 
   if (!diasConDatos.length) {
     el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Sin registros en el mes actual.<br>Usa las flechas ‹ › para navegar a otro mes o registra vuelos en ✚ Vuelo</div></div>';
@@ -1852,6 +1871,18 @@ function renderBitacora(){
       </div>
       <div style="flex:1;height:1px;background:var(--border)"></div>`;
     el.appendChild(fhdr);
+
+    // Si el día viene del GS, agregar vuelos del GS como registros sintéticos
+    if (dayObj._fromGS && GS_DATA && Array.isArray(GS_DATA.vuelos)) {
+      const vGS = GS_DATA.vuelos.filter(v => v.fecha === fecha);
+      // Agrupar por heli
+      const porHeli = {};
+      vGS.forEach(v => {
+        if (!porHeli[v.heli]) porHeli[v.heli] = { heli:v.heli, mat:v.mat||'', base:v.base||'', piloto:v.piloto||'', vuelos:[], estadoDia:'OPERÓ' };
+        porHeli[v.heli].vuelos.push({ ini:v.ini, fin:v.fin, hrs:v.hrs||0, pax:v.pax||0, ll:v.ll||0, carga:v.carga||0, gls:v.gls||0, base:v.base_v||v.base||'' });
+      });
+      dayObj.registros = Object.values(porHeli);
+    }
 
     // Registros de ese día
     dayObj.registros.forEach(r => {
@@ -2218,7 +2249,10 @@ function calcVuelos() {
     if (!ini || !fin) return;
     const [ih,im] = ini.split(':').map(Number);
     const [fh,fm] = fin.split(':').map(Number);
-    const hrs = Math.max(0, (fh*60+fm - ih*60-im)/60);
+    let diffM = (fh*60+fm) - (ih*60+im);
+    // Si fin < ini, asumir que cruzó medianoche (o formato AM/PM)
+    if (diffM <= 0) diffM += 24*60;
+    const hrs = diffM / 60;
     totalHrs += hrs;
 
     // Detectar cambio de configuración (LL ↔ otro tipo)
@@ -2584,15 +2618,20 @@ function guardarRegistro() {
     if (!ini || !fin) return;
     const [ih,im] = ini.split(':').map(Number);
     const [fh,fm] = fin.split(':').map(Number);
-    const hrs = Math.max(0, (fh*60+fm - ih*60-im)/60);
+    let diffM = (fh*60+fm) - (ih*60+im);
+    // Si fin < ini, asumir que cruzó medianoche (o formato AM/PM)
+    if (diffM <= 0) diffM += 24*60;
+    const hrs = diffM / 60;
     vuelos.push({
       ini, fin, hrs: Math.round(hrs*100)/100,
       origen: item.querySelector('.v-origen')?.value || '',
       pax:   parseInt(item.querySelector('.v-pax').value)||0,
       ll:    Math.round(parseFloat(item.querySelector('.v-ll').value)||0),
       carga: parseInt(item.querySelector('.v-carga').value)||0,
+      gls:   Math.round(parseFloat(item.querySelector('.v-gls')?.value)||0),
       base: item.querySelector('.v-base')?.value || document.getElementById('f-base').value,
-      fuel_loc: item.querySelector('.v-base')?.value || document.getElementById('f-base').value
+      fuel_loc: item.querySelector('.v-base')?.value || document.getElementById('f-base').value,
+      tipo: item.querySelector('.v-tipo')?.value || 'll'
     });
   });
 
