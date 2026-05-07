@@ -3088,7 +3088,7 @@ updateDate();
 refreshAll();
 actualizarInfoRespaldo();
 initInstructorSelect();
-iniciarAutoSync();
+setTimeout(function(){ iniciarAutoSync(); }, 1000);
 inicializarPilotos();
 
 
@@ -3955,26 +3955,32 @@ let GS_CACHE = null; // cache de datos del GS
 let GS_LAST_SYNC = null;
 
 function syncGS(callback) {
-  if (!GS_URL || GS_URL === 'PEGAR_URL_AQUI') { if(callback) callback(false); return; }
+  // Siempre llamar callback(false) primero para que el Dashboard muestre datos locales
+  if(callback) callback(false);
+  if (!GS_URL || GS_URL === 'PEGAR_URL_AQUI') return;
+
   const mes = cur.toISOString().slice(0,7);
   const isHttps = window.location.protocol === 'https:';
+  if (!isHttps) return; // No-cors no puede leer respuesta — solo funciona desde https
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 10000);
 
   fetch(GS_URL + '?action=mes&mes=' + mes, {
     redirect: 'follow',
-    mode: isHttps ? 'cors' : 'no-cors',
-    signal: AbortSignal.timeout(10000)
+    mode: 'cors',
+    signal: ctrl.signal
   })
-  .then(r => isHttps ? r.json() : null)
-  .then(data => {
-    if (!data || !data.vuelos) { if(callback) callback(false); return; }
+  .then(function(r) { clearTimeout(timer); return r.json(); })
+  .then(function(data) {
+    if (!data || !data.vuelos) return;
     GS_CACHE = data;
     GS_LAST_SYNC = new Date();
-    // Actualizar badge de sync
-    const el = document.getElementById('gs-sync-info');
+    var el = document.getElementById('gs-sync-info');
     if(el) el.textContent = 'GS sync: ' + GS_LAST_SYNC.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
-    if(callback) callback(true);
+    refreshAll(); // Actualizar Dashboard con datos del GS
   })
-  .catch(() => { if(callback) callback(false); });
+  .catch(function() { clearTimeout(timer); });
 }
 
 // ── Obtener resumen del día desde GS_CACHE ────────────────────────
@@ -4001,14 +4007,8 @@ function gsResumenMes() {
 
 // ── Auto-sync cada 5 minutos ──────────────────────────────────────
 function iniciarAutoSync() {
-  syncGS(function(ok) {
-    if(ok) refreshAll();
-  });
-  setInterval(function() {
-    syncGS(function(ok) {
-      if(ok) refreshAll();
-    });
-  }, 5 * 60 * 1000); // cada 5 minutos
+  syncGS(null); // callback ya es null — syncGS llama refreshAll() internamente si hay datos GS
+  setInterval(function() { syncGS(null); }, 5 * 60 * 1000);
 }
 
 </script>
