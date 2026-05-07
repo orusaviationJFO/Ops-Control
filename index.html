@@ -766,8 +766,12 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
   <div class="fcard">
     <div class="fsec">Combustible</div>
     <div class="frow" style="margin-bottom:0">
-      <label>Total GLS tanqueados hoy (suma de todos los vuelos)</label>
-      <input type="number" id="f-gls" placeholder="0" min="0" step="0.1">
+      <label>Total GLS tanqueados hoy <span style="font-size:10px;color:var(--muted)">(solo si NO registró por vuelo)</span></label>
+      <input type="number" id="f-gls" placeholder="0" min="0" step="0.1" onfocus="validarDuplicacionGLS(this)" oninput="if(!this.value||this.value=='0') document.getElementById('gls-warn').style.display='none'">
+      <div id="gls-warn" style="display:none;color:#e53e3e;font-size:11px;font-weight:600;margin-top:5px;padding:6px 10px;background:rgba(229,62,62,0.08);border-radius:6px;border:1px solid rgba(229,62,62,0.25)">
+        ⚠ Ya registraste tanqueo en vuelos individuales (total: <span id="gls-warn-total">0</span> GLS).<br>
+        Si ingresas aquí también, el consumo se duplicará. Deja este campo en 0 o elimina los tanqueos por vuelo.
+      </div>
     </div>
   </div>
 
@@ -2598,7 +2602,7 @@ function addVuelo() {
         <div class="frow" style="margin-bottom:0"><label>Pasajeros</label><input type="number" class="v-pax" placeholder="0" min="0"></div>
       </div>
     </div>
-    <div class="frow" style="margin-bottom:0"><label>Tanqueo en este vuelo (gls)</label><input type="number" class="v-gls" placeholder="0" min="0"></div>`;
+    <div class="frow" style="margin-bottom:0"><label>Tanqueo en este vuelo (gls)</label><input type="number" class="v-gls" placeholder="0" min="0" onchange="validarGLSIndividual(this)"></div>`;
   // Inicializar visibilidad
   actualizarCamposVuelo(div.querySelector('.v-tipo'));
   el.appendChild(div);
@@ -3801,7 +3805,7 @@ function addVueloBloque(n) {
         <div class="frow" style="margin-bottom:0"><label>Pasajeros</label><input type="number" class="v-pax" placeholder="0" min="0"></div>
       </div>
     </div>
-    <div class="frow" style="margin-bottom:0"><label>Tanqueo en este vuelo (gls)</label><input type="number" class="v-gls" placeholder="0" min="0"></div>
+    <div class="frow" style="margin-bottom:0"><label>Tanqueo en este vuelo (gls)</label><input type="number" class="v-gls" placeholder="0" min="0" onchange="validarGLSIndividual(this)"></div>
   `;
   el.appendChild(div);
   // Aplicar filtro de tipo al crear (igual que addVuelo principal)
@@ -4208,6 +4212,55 @@ function validarRuta(sel) {
   } else {
     var warn = item.querySelector('.ruta-warn');
     if (warn) warn.remove();
+  }
+}
+
+
+// ── Advertencia de duplicación de GLS ────────────────────────────
+function validarDuplicacionGLS(input) {
+  // Sumar los GLS registrados en los vuelos individuales
+  var totalVuelos = 0;
+  document.querySelectorAll('.vuelo-item .v-gls').forEach(function(el) {
+    totalVuelos += parseFloat(el.value) || 0;
+  });
+  var warn = document.getElementById('gls-warn');
+  var warnTotal = document.getElementById('gls-warn-total');
+  if (warn && warnTotal) {
+    if (totalVuelos > 0) {
+      warnTotal.textContent = Math.round(totalVuelos * 10) / 10;
+      warn.style.display = 'block';
+    } else {
+      warn.style.display = 'none';
+    }
+  }
+}
+
+// También verificar al cambiar un v-gls individual — si f-gls tiene valor, advertir
+function validarGLSIndividual(input) {
+  var fgls = document.getElementById('f-gls');
+  var totalFGLS = parseFloat(fgls ? fgls.value : 0) || 0;
+  if (totalFGLS > 0) {
+    // Calcular total individual
+    var totalVuelos = 0;
+    document.querySelectorAll('.vuelo-item .v-gls').forEach(function(el) {
+      totalVuelos += parseFloat(el.value) || 0;
+    });
+    if (totalVuelos > 0) {
+      // Mostrar advertencia en el vuelo individual
+      var item = input ? input.closest('.vuelo-item') : null;
+      if (item) {
+        var warn = item.querySelector('.gls-dup-warn');
+        if (!warn) {
+          warn = document.createElement('div');
+          warn.className = 'gls-dup-warn';
+          warn.style.cssText = 'color:#e53e3e;font-size:10px;margin-top:3px';
+          warn.textContent = '⚠ Ya ingresaste GLS en "Total día" — riesgo de duplicación';
+          input.parentElement.appendChild(warn);
+        }
+      }
+      // También actualizar la advertencia del campo f-gls
+      validarDuplicacionGLS(fgls);
+    }
   }
 }
 
