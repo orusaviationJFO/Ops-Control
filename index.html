@@ -519,7 +519,6 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
 
 <!-- DASHBOARD -->
 <div class="view active" id="view-dashboard">
-<div style="display:flex;justify-content:flex-end;padding:4px 14px 0;"><span id="gs-sync-info" style="font-size:10px;color:var(--muted);font-family:var(--mono)">GS: sin sincronizar</span></div>
 
   <!-- ① HORAS TOTALES MES — Hero card -->
   <div style="background:linear-gradient(135deg,#e53e3e,#c53030);border-radius:14px;padding:16px 18px;margin-bottom:12px">
@@ -1493,44 +1492,6 @@ function renderDashboard(){
   const fmtKg = kg => kg>=1000 ? (kg/1000).toFixed(1)+'t' : kg.toLocaleString()+' kg';
 
   // ─ Label mes ─
-  // ── Merge con GS_CACHE (datos en tiempo real de todos los SOAs) ──
-  if (GS_CACHE && GS_CACHE.vuelos) {
-    const fechaHoy = dkey(cur);
-    const mesPfx = cur.toISOString().slice(0,7);
-    // KPIs del día desde GS
-    const vHoy = GS_CACHE.vuelos.filter(v => v.fecha === fechaHoy);
-    if (vHoy.length > 0) {
-      hoy.segs = vHoy.length;
-      hoy.hrs  = vHoy.reduce((a,v) => a+(v.hrs||0), 0);
-      hoy.pax  = vHoy.reduce((a,v) => a+(v.pax||0), 0);
-      hoy.kg   = vHoy.reduce((a,v) => a+(v.ll||0)+(v.carga||0), 0);
-      hoy.fuel = vHoy.reduce((a,v) => a+(v.gls||0), 0);
-    }
-    // KPIs del mes desde GS
-    const vMes = GS_CACHE.vuelos.filter(v => v.fecha && v.fecha.startsWith(mesPfx));
-    if (vMes.length > mes.segs) {
-      mes.segs = vMes.length;
-      mes.hrs  = vMes.reduce((a,v) => a+(v.hrs||0), 0);
-      mes.pax  = vMes.reduce((a,v) => a+(v.pax||0), 0);
-      mes.kg   = vMes.reduce((a,v) => a+(v.ll||0)+(v.carga||0), 0);
-      mes.fuel = vMes.reduce((a,v) => a+(v.gls||0), 0);
-      // Prog y cumpl — tomar el máximo reportado
-      const progRows = vMes.filter(v => v.prog > 0);
-      const cumplRows = vMes.filter(v => v.cumpl > 0);
-      if (progRows.length)  mes.prog  = Math.max(...progRows.map(v=>v.prog));
-      if (cumplRows.length) mes.cumpl = Math.max(...cumplRows.map(v=>v.cumpl));
-      // Por helicóptero desde GS
-      vMes.forEach(v => {
-        const hk = v.heli || 'Sin tipo';
-        if (!mes.porHeli[hk]) mes.porHeli[hk] = {hrs:0,segs:0,pax:0,kg:0,mat:v.mat||''};
-        mes.porHeli[hk].hrs  += v.hrs||0;
-        mes.porHeli[hk].segs += 1;
-        mes.porHeli[hk].pax  += v.pax||0;
-        mes.porHeli[hk].kg   += (v.ll||0)+(v.carga||0);
-      });
-    }
-  }
-
   document.getElementById('dash-mes-label').textContent =
     nombreMes.charAt(0).toUpperCase()+nombreMes.slice(1)+' — Acumulado';
 
@@ -3088,7 +3049,6 @@ updateDate();
 refreshAll();
 actualizarInfoRespaldo();
 initInstructorSelect();
-setTimeout(function(){ iniciarAutoSync(); }, 1000);
 inicializarPilotos();
 
 
@@ -3949,67 +3909,6 @@ function initInstructorSelect() {
     instructores.map(function(p) { return '<option value="'+p+'">'+p+'</option>'; }).join('');
 }
 
-
-// ── Sincronización con Google Sheets ─────────────────────────────
-let GS_CACHE = null; // cache de datos del GS
-let GS_LAST_SYNC = null;
-
-function syncGS(callback) {
-  // Siempre llamar callback(false) primero para que el Dashboard muestre datos locales
-  if(callback) callback(false);
-  if (!GS_URL || GS_URL === 'PEGAR_URL_AQUI') return;
-
-  const mes = cur.toISOString().slice(0,7);
-  const isHttps = window.location.protocol === 'https:';
-  if (!isHttps) return; // No-cors no puede leer respuesta — solo funciona desde https
-
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 10000);
-
-  fetch(GS_URL + '?action=mes&mes=' + mes, {
-    redirect: 'follow',
-    mode: 'cors',
-    signal: ctrl.signal
-  })
-  .then(function(r) { clearTimeout(timer); return r.json(); })
-  .then(function(data) {
-    if (!data || !data.vuelos) return;
-    GS_CACHE = data;
-    GS_LAST_SYNC = new Date();
-    var el = document.getElementById('gs-sync-info');
-    if(el) el.textContent = 'GS sync: ' + GS_LAST_SYNC.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
-    refreshAll(); // Actualizar Dashboard con datos del GS
-  })
-  .catch(function() { clearTimeout(timer); });
-}
-
-// ── Obtener resumen del día desde GS_CACHE ────────────────────────
-function gsResumenDia(fecha) {
-  if (!GS_CACHE || !GS_CACHE.vuelos) return null;
-  const vuelos = GS_CACHE.vuelos.filter(v => v.fecha === fecha);
-  if (!vuelos.length) return null;
-  return {
-    segs: vuelos.length,
-    hrs: vuelos.reduce((a,v) => a + (v.hrs||0), 0),
-    pax: vuelos.reduce((a,v) => a + (v.pax||0), 0),
-    kg:  vuelos.reduce((a,v) => a + (v.ll||0) + (v.carga||0), 0),
-    gls: vuelos.reduce((a,v) => a + (v.gls||0), 0),
-    helis: [...new Set(vuelos.map(v => v.heli))],
-    vuelos: vuelos
-  };
-}
-
-// ── Obtener resumen del mes desde GS_CACHE ────────────────────────
-function gsResumenMes() {
-  if (!GS_CACHE || !GS_CACHE.resumen) return null;
-  return GS_CACHE.resumen;
-}
-
-// ── Auto-sync cada 5 minutos ──────────────────────────────────────
-function iniciarAutoSync() {
-  syncGS(null); // callback ya es null — syncGS llama refreshAll() internamente si hay datos GS
-  setInterval(function() { syncGS(null); }, 5 * 60 * 1000);
-}
 
 </script>
 
