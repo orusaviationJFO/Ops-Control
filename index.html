@@ -2602,7 +2602,9 @@ function guardarRegistro() {
 
   // ── Descontar GLS del tanque de la base automáticamente ──
   const baseReg = lastReg.base;
-  const glsConsumidos = lastReg.gls || 0;
+  // Sumar GLS del tanque principal + GLS de cada vuelo individual
+  const glsVuelos = (lastReg.vuelos || []).reduce((a, v) => a + (v.gls || 0), 0);
+  const glsConsumidos = (lastReg.gls || 0) + glsVuelos;
   if (glsConsumidos > 0 && baseReg && FUEL_NIVEL[baseReg] !== undefined) {
     const antes   = FUEL_NIVEL[baseReg];
     const despues = Math.max(0, antes - glsConsumidos);
@@ -3468,17 +3470,15 @@ function agregarBloqueHeli() {
               <option value="">Seleccionar…</option>
               <optgroup label="Bell 412">
                 <option value="BELL 412|HK-4767">Bell 412 · HK-4767</option>
-                <option value="BELL 412|HK-4680">Bell 412 · HK-4680 (relevo)</option>
+                <option value="BELL 412|HK-5459">Bell 412 · HK-5459</option>
               </optgroup>
               <optgroup label="AW109 Koala">
                 <option value="KOALA|HK-5444">Koala · HK-5444</option>
-                <option value="KOALA|HK-5454">Koala · HK-5454 (relevo)</option>
-                <option value="KOALA|HK-5459">Koala · HK-5459 (relevo)</option>
+                <option value="KOALA|HK-5105">Koala · HK-5105</option>
               </optgroup>
               <optgroup label="BK117">
                 <option value="BK117|HK-5015">BK117 · HK-5015</option>
-                <option value="BK117|HK-5105">BK117 · HK-5105 (relevo)</option>
-                <option value="BK117|HK-5137">BK117 · HK-5137 (relevo)</option>
+                <option value="BK117|HK-5137">BK117 · HK-5137</option>
               </optgroup>
               <optgroup label="Bell 206 (relevo)">
                 <option value="BELL 206L3|HK-4348">Bell 206L3 · HK-4348</option>
@@ -3556,8 +3556,48 @@ function addVueloBloque(n) {
       <button class="vi-del" onclick="document.getElementById('bvitem-${n}-${vn}').remove()">✕ Quitar</button>
     </div>
     <div class="f2" style="margin-bottom:9px">
-      <div class="frow" style="margin-bottom:0"><label>Inicio</label><input type="time" class="v-ini"></div>
-      <div class="frow" style="margin-bottom:0"><label>Final</label><input type="time" class="v-fin"></div>
+      <div class="frow" style="margin-bottom:0">
+        <label>Origen</label>
+        <select class="v-origen" style="width:100%">
+          <option value="">— seleccionar —</option>
+          <optgroup label="Bases">
+            <option value="Frontino">Frontino</option>
+            <option value="Mutatá">Mutatá</option>
+            <option value="Quibdó">Quibdó</option>
+            <option value="La Quiebra">La Quiebra</option>
+          </optgroup>
+          <optgroup label="Campamentos">
+            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp La Rica">Camp La Rica</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="frow" style="margin-bottom:0">
+        <label>Inicio</label>
+        <input type="time" class="v-ini">
+      </div>
+    </div>
+    <div class="f2" style="margin-bottom:9px">
+      <div class="frow" style="margin-bottom:0">
+        <label>Destino</label>
+        <select class="v-base" style="width:100%">
+          <option value="">— seleccionar —</option>
+          <optgroup label="Bases">
+            <option value="Frontino">Frontino</option>
+            <option value="Mutatá">Mutatá</option>
+            <option value="Quibdó">Quibdó</option>
+            <option value="La Quiebra">La Quiebra</option>
+          </optgroup>
+          <optgroup label="Campamentos">
+            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp La Rica">Camp La Rica</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="frow" style="margin-bottom:0">
+        <label>Fin</label>
+        <input type="time" class="v-fin">
+      </div>
     </div>
     <div class="frow" style="margin-bottom:9px">
       <label>Tipo de operación</label>
@@ -3567,32 +3607,18 @@ function addVueloBloque(n) {
         <option value="pax">Pasajeros</option>
         <option value="mixto">Mixto (pax + carga)</option>
         <option value="ferri">Ferri / posicionamiento</option>
+        <option value="rotacion">Rotación interna</option>
       </select>
     </div>
     <div class="f2" style="margin-bottom:9px">
-      <div class="frow" style="margin-bottom:0"><label>Pax</label><input type="number" class="v-pax" placeholder="0" min="0"></div>
+      <div class="frow" style="margin-bottom:0"><label>PAX</label><input type="number" class="v-pax" placeholder="0" min="0"></div>
       <div class="frow" style="margin-bottom:0"><label>Línea larga (kg)</label><input type="number" class="v-ll" placeholder="0" min="0"></div>
     </div>
     <div class="f2">
-      <div class="frow" style="margin-bottom:0"><label>Carga interna / equipaje (kg)</label><input type="number" class="v-carga" placeholder="0" min="0"></div>
+      <div class="frow" style="margin-bottom:0"><label>Carga interna (kg)</label><input type="number" class="v-carga" placeholder="0" min="0"></div>
       <div class="frow" style="margin-bottom:0"><label>Tanqueo en este vuelo (gls)</label><input type="number" class="v-gls" placeholder="0" min="0"></div>
     </div>
-    <div class="frow" style="margin-top:8px;margin-bottom:0">
-      <label>Destino / lugar de operación</label>
-      <select class="v-base" style="width:100%">
-        <option value="">— seleccionar —</option>
-        <optgroup label="Bases principales">
-          <option value="Frontino">Frontino</option>
-          <option value="Mutatá">Mutatá</option>
-          <option value="Quibdó">Quibdó</option>
-          <option value="La Quiebra">La Quiebra</option>
-        </optgroup>
-        <optgroup label="Campamentos">
-          <option value="Camp Pantanos">Camp Pantanos</option>
-          <option value="Camp La Rica">Camp La Rica</option>
-        </optgroup>
-      </select>
-    </div>`;
+  `;
   el.appendChild(div);
 }
 
@@ -3648,8 +3674,10 @@ function guardarBloque(n) {
   localStorage.setItem('opsdata', JSON.stringify(STORE));
 
   // ── Descontar GLS del tanque automáticamente ──
-  if (gls > 0 && base && FUEL_NIVEL[base] !== undefined) {
-    const despues = Math.max(0, FUEL_NIVEL[base] - gls);
+  const glsVuelosB = (vuelos || []).reduce((a, v) => a + (v.gls || 0), 0);
+  const glsTotalB = (gls || 0) + glsVuelosB;
+  if (glsTotalB > 0 && base && FUEL_NIVEL[base] !== undefined) {
+    const despues = Math.max(0, FUEL_NIVEL[base] - glsTotalB);
     FUEL_NIVEL[base] = despues;
     localStorage.setItem('fuel_nivel_inicial', JSON.stringify(FUEL_NIVEL));
 
