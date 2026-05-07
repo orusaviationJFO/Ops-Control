@@ -2540,7 +2540,7 @@ function addVuelo() {
     <div class="f2" style="margin-bottom:9px">
       <div class="frow" style="margin-bottom:0">
         <label>Origen</label>
-        <select class="v-origen" style="width:100%" onchange="validarRuta(this)">
+        <select class="v-origen" style="width:100%">
           <option value="">— seleccionar —</option>
           <optgroup label="Bases">
             <option value="Frontino">Frontino</option>
@@ -2562,7 +2562,7 @@ function addVuelo() {
     <div class="f2" style="margin-bottom:9px">
       <div class="frow" style="margin-bottom:0">
         <label>Destino</label>
-        <select class="v-base" style="width:100%" onchange="validarRuta(this)">
+        <select class="v-base" style="width:100%">
           <option value="">— seleccionar —</option>
           <optgroup label="Bases">
             <option value="Frontino">Frontino</option>
@@ -3595,18 +3595,19 @@ function agregarBloqueHeli() {
   bloqueCount++;
   const n = bloqueCount;
   const container = document.getElementById('bloques-extra');
-
   const div = document.createElement('div');
   div.className = 'heli-bloque';
   div.id = 'bloque-' + n;
-
   div.innerHTML = `
     <div class="heli-bloque-hdr">
       <span class="heli-bloque-num">🚁 Helicóptero adicional #${n}</span>
       <button class="btn-remove-bloque" onclick="document.getElementById('bloque-${n}').remove()">✕ Quitar</button>
     </div>
     <div class="heli-bloque-body">
+
+      <!-- Paso 1 del bloque extra: idéntico al formulario principal -->
       <div class="fcard" style="margin-bottom:10px;padding:12px">
+        <div class="fsec" style="margin-bottom:8px">Paso 1 · una vez al día</div>
         <div class="f2">
           <div class="frow"><label>Helicóptero</label>
             <select id="b${n}-heli" onchange="actualizarMatBloque(this,'b${n}-mat')">
@@ -3630,18 +3631,27 @@ function agregarBloqueHeli() {
               </optgroup>
             </select>
           </div>
-          <div class="frow"><label>Base</label>
-            <select id="b${n}-base">
-              <option value="Frontino">Frontino</option>
-              <option value="Mutatá">Mutatá</option>
-              <option value="Quibdó">Quibdó</option>
-              <option value="La Quiebra">La Quiebra</option>
-              <option value="Camp Pantanos">Camp Pantanos</option>
-              <option value="Camp La Rica">Camp La Rica</option>
+          <div class="frow"><label>Proyecto</label>
+            <select id="b${n}-proyecto">
+              <option value="">Seleccionar…</option>
+              <option value="Pantanos">Pantanos</option>
+              <option value="La Rica">La Rica</option>
+              <option value="La Equis">La Equis</option>
+              <option value="Comita">Comita</option>
             </select>
           </div>
         </div>
-        <div class="frow"><label>Piloto(s)</label>
+        <div class="frow"><label>Base de operación</label>
+          <select id="b${n}-base">
+            <option value="Frontino">Frontino</option>
+            <option value="Mutatá">Mutatá</option>
+            <option value="Quibdó">Quibdó</option>
+            <option value="La Quiebra">La Quiebra</option>
+            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp La Rica">Camp La Rica</option>
+          </select>
+        </div>
+        <div class="frow"><label>Piloto</label>
           <select id="b${n}-piloto" style="width:100%">
             <option value="">— seleccionar piloto —</option>
           </select>
@@ -3654,38 +3664,63 @@ function agregarBloqueHeli() {
         <div class="frow"><label>Piloto Instructor</label>
           <select id="b${n}-instructor" style="width:100%">
             <option value="N/A">N/A — Sin instructor</option>
-            <option value="Lara">Lara</option>
-            <option value="Barbesi">Barbesi</option>
-            <option value="Cruz">Cruz</option>
-            <option value="Sandoval">Sandoval</option>
-            <option value="Díaz">Díaz</option>
           </select>
         </div>
         <div class="f2">
           <div class="frow" style="margin-bottom:0"><label>Duty IN</label>
             <input type="time" id="b${n}-din" value="07:00">
           </div>
-          <div class="frow" style="margin-bottom:0"><label>Duty OUT</label>
+          <div class="frow" style="margin-bottom:0">
+            <label>Duty OUT</label>
             <input type="time" id="b${n}-dout" value="16:00">
             <span style="font-size:11px;color:#d69e2e;display:block;margin-top:3px">⏱ Completar al finalizar el día</span>
           </div>
         </div>
       </div>
 
+      <!-- Vuelos -->
       <div class="fcard" style="margin-bottom:10px;padding:12px">
         <div class="fsec">Vuelos</div>
         <div id="b${n}-vuelos-list"></div>
         <button onclick="addVueloBloque(${n})" class="btn-add">+ Agregar vuelo</button>
       </div>
 
-      <div class="fcard" style="padding:12px">
+      <!-- Cumplimiento -->
+      <div class="fcard" style="margin-bottom:10px;padding:12px">
+        <div class="fsec">Cumplimiento programación</div>
         <div class="f2">
-          <div class="frow" style="margin-bottom:0"><label>GLS consumidos</label>
-            <input type="number" id="b${n}-gls" placeholder="0" min="0">
+          <div class="frow" style="margin-bottom:0"><label>Vuelos programados</label>
+            <input type="number" id="b${n}-prog" placeholder="0" min="0">
           </div>
-          <div class="frow" style="margin-bottom:0"><label>Obs.</label>
-            <input type="text" id="b${n}-obs" placeholder="Observaciones">
+          <div class="frow" style="margin-bottom:0"><label>Vuelos cumplidos</label>
+            <input type="number" id="b${n}-cumpl" placeholder="0" min="0">
           </div>
+        </div>
+        <div class="frow" style="margin-bottom:0"><label>Estado del día</label>
+          <select id="b${n}-estado">
+            <option value="OPERÓ">✅ OPERÓ</option>
+            <option value="PARCIAL">⚠️ PARCIAL</option>
+            <option value="NO OPERÓ - CLIMA">🌧 NO OPERÓ - Clima</option>
+            <option value="NO OPERÓ - AOG">🔧 NO OPERÓ - AOG</option>
+            <option value="NO OPERÓ - CLIENTE">📋 NO OPERÓ - Cliente</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Combustible -->
+      <div class="fcard" style="margin-bottom:10px;padding:12px">
+        <div class="fsec">Combustible</div>
+        <div class="frow" style="margin-bottom:0">
+          <label>Total GLS tanqueados hoy <span style="font-size:10px;color:var(--muted)">(solo si NO registró por vuelo)</span></label>
+          <input type="number" id="b${n}-gls" placeholder="0" min="0" step="0.1"
+            onfocus="validarDuplicacionBloqueGLS(this,${n})"
+            oninput="if(!this.value||this.value==='0') { var w=document.getElementById('b${n}-gls-warn'); if(w) w.style.display='none'; }">
+          <div id="b${n}-gls-warn" style="display:none;color:#e53e3e;font-size:11px;font-weight:600;margin-top:5px;padding:6px 10px;background:rgba(229,62,62,0.08);border-radius:6px;border:1px solid rgba(229,62,62,0.25)">
+            ⚠ Ya registraste tanqueo en vuelos individuales (<span id="b${n}-gls-warn-total">0</span> GLS). Si ingresas aquí también, el consumo se duplicará.
+          </div>
+        </div>
+        <div class="frow" style="margin-bottom:0"><label>Observaciones</label>
+          <input type="text" id="b${n}-obs" placeholder="Observaciones del día">
         </div>
       </div>
 
@@ -3693,37 +3728,33 @@ function agregarBloqueHeli() {
         width:100%;margin-top:10px;padding:13px;border-radius:10px;border:none;
         background:linear-gradient(135deg,#e53e3e,#c53030);
         color:#ffffff;font-size:17px;font-weight:700;cursor:pointer;font-family:var(--sans)
-      ">Guardar helicóptero #${n}</button>
+      ">💾 Guardar helicóptero #${n}</button>
     </div>
   `;
-
   container.appendChild(div);
-  // Precargar todos los pilotos disponibles (antes de seleccionar aeronave)
-  var allPilotos = [];
-  Object.values(PILOTOS).forEach(function(r){ r.pilotos.forEach(function(p){ if(allPilotos.indexOf(p)===-1) allPilotos.push(p); }); });
-  allPilotos.sort();
-  var fpil = document.getElementById('b'+n+'-piloto');
-  if (fpil) {
-    fpil.innerHTML = '<option value="">— seleccionar piloto —</option>' +
-      allPilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
-  }
-  // Precargar copilotos Bell 412 por defecto
-  var fcop = document.getElementById('b'+n+'-copiloto');
-  if (fcop) {
-    // Precargar todos los pilotos disponibles como copilotos (antes de seleccionar aeronave)
-    var allCops = [];
-    Object.values(PILOTOS).forEach(function(r) {
-      r.pilotos.forEach(function(p){ if(allCops.indexOf(p)===-1) allCops.push(p); });
-      r.copilotos.forEach(function(p){ if(allCops.indexOf(p)===-1) allCops.push(p); });
-    });
-    allCops.sort();
-    fcop.innerHTML = '<option value="N/A">N/A — Single pilot</option>' +
-      allCops.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
-  }
-  // Scroll al nuevo bloque
-  setTimeout(() => div.scrollIntoView({behavior:'smooth', block:'start'}), 100);
-}
 
+  // Poblar todos los pilotos disponibles
+  var todosPilotos = [];
+  Object.values(PILOTOS).forEach(function(r) {
+    r.pilotos.forEach(function(p){ if(todosPilotos.indexOf(p)===-1) todosPilotos.push(p); });
+    r.copilotos.forEach(function(p){ if(todosPilotos.indexOf(p)===-1) todosPilotos.push(p); });
+  });
+  todosPilotos.sort();
+  var optsP = '<option value="">— seleccionar piloto —</option>' +
+    todosPilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+  var fpil = document.getElementById('b'+n+'-piloto');
+  if (fpil) fpil.innerHTML = optsP;
+  var fcop = document.getElementById('b'+n+'-copiloto');
+  if (fcop) fcop.innerHTML = '<option value="N/A">N/A — Single pilot</option>' +
+    todosPilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+  var fins = document.getElementById('b'+n+'-instructor');
+  if (fins) fins.innerHTML = '<option value="N/A">N/A — Sin instructor</option>' +
+    ['Lara','Barbesi','Cruz','Sandoval','Díaz'].map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+
+  // Agregar primer vuelo automáticamente
+  addVueloBloque(n);
+  setTimeout(function(){ div.scrollIntoView({behavior:'smooth',block:'start'}); }, 100);
+}
 let vCountB = {};
 function addVueloBloque(n) {
   if (!vCountB[n]) vCountB[n] = 0;
@@ -3741,7 +3772,7 @@ function addVueloBloque(n) {
     <div class="f2" style="margin-bottom:9px">
       <div class="frow" style="margin-bottom:0">
         <label>Origen</label>
-        <select class="v-origen" style="width:100%" onchange="validarRuta(this)">
+        <select class="v-origen" style="width:100%">
           <option value="">— seleccionar —</option>
           <optgroup label="Bases">
             <option value="Frontino">Frontino</option>
@@ -3763,7 +3794,7 @@ function addVueloBloque(n) {
     <div class="f2" style="margin-bottom:9px">
       <div class="frow" style="margin-bottom:0">
         <label>Destino</label>
-        <select class="v-base" style="width:100%" onchange="validarRuta(this)">
+        <select class="v-base" style="width:100%">
           <option value="">— seleccionar —</option>
           <optgroup label="Bases">
             <option value="Frontino">Frontino</option>
@@ -3842,16 +3873,22 @@ function actualizarMatBloque(sel, matId) {
       ['Lara','Barbesi','Cruz','Sandoval','Díaz'].map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
   }
 }function guardarBloque(n) {
-  const heliVal = document.getElementById('b'+n+'-heli').value;
+  const heliVal   = document.getElementById('b'+n+'-heli').value;
   if (!heliVal) { mostrarToast('Selecciona el helicóptero adicional','err'); return; }
 
   const [heli, mat] = heliVal.split('|');
-  const base    = document.getElementById('b'+n+'-base').value;
-  const piloto  = document.getElementById('b'+n+'-piloto').value.trim();
-  const dutyIn  = document.getElementById('b'+n+'-din').value;
-  const dutyOut = document.getElementById('b'+n+'-dout').value;
-  const gls     = parseFloat(document.getElementById('b'+n+'-gls').value)||0;
-  const obs     = document.getElementById('b'+n+'-obs').value.trim();
+  const proyecto  = (document.getElementById('b'+n+'-proyecto') || {value:''}).value;
+  const base      = document.getElementById('b'+n+'-base').value;
+  const piloto    = document.getElementById('b'+n+'-piloto').value.trim();
+  const copiloto  = (document.getElementById('b'+n+'-copiloto') || {value:'N/A'}).value;
+  const instructor= (document.getElementById('b'+n+'-instructor') || {value:'N/A'}).value;
+  const dutyIn    = document.getElementById('b'+n+'-din').value;
+  const dutyOut   = document.getElementById('b'+n+'-dout').value;
+  const progB     = parseInt((document.getElementById('b'+n+'-prog') || {value:0}).value)||0;
+  const cumplB    = parseInt((document.getElementById('b'+n+'-cumpl') || {value:0}).value)||0;
+  const estadoDiaB= (document.getElementById('b'+n+'-estado') || {value:'OPERÓ'}).value;
+  const gls       = parseFloat(document.getElementById('b'+n+'-gls').value)||0;
+  const obs       = document.getElementById('b'+n+'-obs').value.trim();
 
   const items = document.querySelectorAll('#b'+n+'-vuelos-list .vuelo-item');
   if (!items.length) { mostrarToast('Agrega al menos un vuelo','err'); return; }
@@ -3882,9 +3919,10 @@ function actualizarMatBloque(sel, matId) {
   const keyStr = cur.toISOString().slice(0,10);
   if (!STORE[keyStr]) STORE[keyStr] = {registros:[]};
 
-  const reg = { heli, mat, base, piloto, dutyIn, dutyOut, vuelos, gls, tank:0,
-                prog: vuelos.length, cumpl: vuelos.length,
-                estadoDia:'OPERÓ', causas:[], hTier:0, obs };
+  const reg = { heli, mat, base, proyecto, piloto, copiloto, instructor,
+                dutyIn, dutyOut, vuelos, gls, tank:0,
+                prog: progB || vuelos.length, cumpl: cumplB || vuelos.length,
+                estadoDia: estadoDiaB, causas:[], hTier:0, obs };
 
   STORE[keyStr].registros.push(reg);
   localStorage.setItem('opsdata', JSON.stringify(STORE));
@@ -4198,29 +4236,6 @@ function iniciarSyncGS() {
 }
 
 
-// ── Validar que origen ≠ destino ─────────────────────────────────
-function validarRuta(sel) {
-  var item = sel.closest('.vuelo-item');
-  if (!item) return;
-  var origen  = item.querySelector('.v-origen');
-  var destino = item.querySelector('.v-base');
-  if (!origen || !destino) return;
-  if (origen.value && destino.value && origen.value === destino.value) {
-    // Warning visual
-    var warn = item.querySelector('.ruta-warn');
-    if (!warn) {
-      warn = document.createElement('div');
-      warn.className = 'ruta-warn';
-      warn.style.cssText = 'color:#e53e3e;font-size:11px;font-weight:600;margin-top:4px;padding:6px 10px;background:rgba(229,62,62,0.1);border-radius:6px;border:1px solid rgba(229,62,62,0.3)';
-      warn.textContent = '⚠ Origen y destino no pueden ser iguales';
-      destino.parentElement.appendChild(warn);
-    }
-  } else {
-    var warn = item.querySelector('.ruta-warn');
-    if (warn) warn.remove();
-  }
-}
-
 
 // ── Advertencia de duplicación de GLS ────────────────────────────
 function validarDuplicacionGLS(input) {
@@ -4266,6 +4281,26 @@ function validarGLSIndividual(input) {
       }
       // También actualizar la advertencia del campo f-gls
       validarDuplicacionGLS(fgls);
+    }
+  }
+}
+
+
+// ── Advertencia GLS duplicado en bloque extra ─────────────────────
+function validarDuplicacionBloqueGLS(input, n) {
+  var totalVuelos = 0;
+  var lista = document.getElementById('b'+n+'-vuelos-list');
+  if (lista) lista.querySelectorAll('.v-gls').forEach(function(el) {
+    totalVuelos += parseFloat(el.value) || 0;
+  });
+  var warn = document.getElementById('b'+n+'-gls-warn');
+  var warnTotal = document.getElementById('b'+n+'-gls-warn-total');
+  if (warn && warnTotal) {
+    if (totalVuelos > 0) {
+      warnTotal.textContent = Math.round(totalVuelos*10)/10;
+      warn.style.display = 'block';
+    } else {
+      warn.style.display = 'none';
     }
   }
 }
