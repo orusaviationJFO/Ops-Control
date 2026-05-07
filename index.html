@@ -3473,10 +3473,8 @@ function renderMonitor(data) {
   // KPIs
   // Normalizar campos que vienen de Sheets en formatos variables
   vuelos = vuelos.map(v => {
-    // hrs: puede venir como número, string "0.5", o fracción
-    let hrs = parseFloat(v.hrs) || 0;
-    // Si hrs llegó como fracción de día (<1), convertir a horas
-    if (hrs > 0 && hrs < 1) hrs = Math.round(hrs * 24 * 100) / 100;
+    // hrs: viene siempre como horas decimales (ej: 0.3 = 18 min, 1.5 = 1h30min)
+    let hrs = Math.round((parseFloat(v.hrs) || 0) * 100) / 100;
     // ini/fin: pueden venir como "1899-12-30T07:30:00.000Z" o "07:30:00" o "07:30"
     const parseTime = (t) => {
       if (!t) return '—';
