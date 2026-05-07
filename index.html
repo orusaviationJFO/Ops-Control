@@ -2378,34 +2378,34 @@ const PILOTOS = {
 };
 
 function actualizarMat(sel) {
+  // La lista de pilotos y copilotos es siempre completa — no filtra por aeronave
   const [heli] = (sel.value || '').split('|');
-  const roster  = PILOTOS[heli] || { pilotos: [], copilotos: [] };
-  const esCrew  = heli === 'BELL 412';
 
-  // Pilotos del tipo seleccionado, o todos si no hay selección
-  const pilotos = heli && roster.pilotos.length
-    ? roster.pilotos
-    : [...new Set(Object.values(PILOTOS).flatMap(r => r.pilotos))].sort();
-
-  // Copilotos: Bell 412 usa su lista; los demás usan mismos pilotos
-  const copilotos = esCrew && roster.copilotos.length ? roster.copilotos : pilotos;
-
+  // Poblar piloto con lista completa
   const fpil = document.getElementById('f-piloto');
   if (fpil) {
+    const pilotos = [...new Set(Object.values(PILOTOS).flatMap(r => [...r.pilotos, ...r.copilotos]))].sort();
     fpil.innerHTML = '<option value="">— seleccionar piloto —</option>' +
       pilotos.map(p => `<option value="${p}">${p}</option>`).join('');
   }
 
+  // Poblar copiloto con lista completa
   const fcop = document.getElementById('f-copiloto');
   if (fcop) {
+    const copilotos = [...new Set(Object.values(PILOTOS).flatMap(r => [...r.pilotos, ...r.copilotos]))].sort();
     fcop.innerHTML = '<option value="N/A">N/A — Single pilot</option>' +
       copilotos.map(p => `<option value="${p}">${p}</option>`).join('');
-    if (!esCrew) fcop.value = 'N/A';
+  }
+
+  // Instructor — siempre la misma lista fija
+  const fins = document.getElementById('f-instructor');
+  if (fins) {
+    fins.innerHTML = '<option value="N/A">N/A — Sin instructor</option>' +
+      ['Lara','Barbesi','Cruz','Sandoval','Díaz'].map(p => `<option value="${p}">${p}</option>`).join('');
   }
 
   recalcFTL();
 }
-
 function agregarNuevoPiloto() {
   const nombre = document.getElementById('f-nuevo-piloto').value.trim();
   const msg    = document.getElementById('nuevo-piloto-msg');
@@ -3709,42 +3709,36 @@ function addVueloBloque(n) {
 
 
 function actualizarMatBloque(sel, matId) {
-  var val = sel.value || '';
-  var heli = val.split('|')[0];
-  var roster = PILOTOS[heli] || { pilotos: [], copilotos: [], instructores: [] };
+  // Lista completa — no filtra por aeronave
   var match = sel.id ? sel.id.match(/^b(\d+)-heli$/) : null;
   if (!match) return;
   var n = match[1];
 
-  // Pilotos
+  var todosPilotos = [];
+  Object.values(PILOTOS).forEach(function(r) {
+    r.pilotos.forEach(function(p){ if(todosPilotos.indexOf(p)===-1) todosPilotos.push(p); });
+    r.copilotos.forEach(function(p){ if(todosPilotos.indexOf(p)===-1) todosPilotos.push(p); });
+  });
+  todosPilotos.sort();
+
   var fpil = document.getElementById('b'+n+'-piloto');
   if (fpil) {
-    var pilotos = roster.pilotos.length ? roster.pilotos
-      : [].concat.apply([], Object.values(PILOTOS).map(function(r){ return r.pilotos; }))
-          .filter(function(v,i,a){ return a.indexOf(v)===i; }).sort();
     fpil.innerHTML = '<option value="">— seleccionar piloto —</option>' +
-      pilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+      todosPilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
   }
 
-  // Copilotos
   var fcop = document.getElementById('b'+n+'-copiloto');
   if (fcop) {
-    var copilotos = (heli === 'BELL 412' && roster.copilotos.length) ? roster.copilotos
-      : (roster.pilotos.length ? roster.pilotos : ['Fierro','Rivera']);
     fcop.innerHTML = '<option value="N/A">N/A — Single pilot</option>' +
-      copilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+      todosPilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
   }
 
-  // Instructor
   var fins = document.getElementById('b'+n+'-instructor');
   if (fins) {
-    var instructores = roster.instructores && roster.instructores.length
-      ? roster.instructores : ['Lara','Barbesi','Cruz','Sandoval','Díaz'];
     fins.innerHTML = '<option value="N/A">N/A — Sin instructor</option>' +
-      instructores.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+      ['Lara','Barbesi','Cruz','Sandoval','Díaz'].map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
   }
-}
-function guardarBloque(n) {
+}function guardarBloque(n) {
   const heliVal = document.getElementById('b'+n+'-heli').value;
   if (!heliVal) { mostrarToast('Selecciona el helicóptero adicional','err'); return; }
 
