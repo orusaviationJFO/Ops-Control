@@ -2970,7 +2970,7 @@ document.addEventListener('change', e => {
 // ── Refresh ──
 
   // ── GOOGLE SHEETS INTEGRATION ─────────────────────────────
-  const GS_URL = "https://script.google.com/macros/s/AKfycbzLQ3pelk2FYoIe9QsmOyA2JXC6f7GY37VvEBAru41vCpyo4_CGum9Z3uwbuK_UPlwL/exec"; // ← pegar URL del Apps Script aquí
+  const GS_URL = "https://script.google.com/macros/s/AKfycbz2yyrh6Ek8i1fFRkBEnRtNHbjZguwlhmCOkw-wuWgzzZT2p7BLsdXXvEQC9wIaos_S/exec"; // ← pegar URL del Apps Script aquí
 
   async function enviarASheets(payload) {
     if (!GS_URL || GS_URL === "PEGAR_URL_AQUI") return; // no configurado
@@ -3070,22 +3070,35 @@ inicializarPilotos();
     badge.textContent = '○ Sheets OFF';
   }, 8000);
 
-  // no-cors: no lanza CORS error desde file://, solo devuelve opaque response
-  // Si resuelve = hay conexión al servidor (aunque no podamos leer la respuesta)
+  // Desde https:// usar cors (puede leer respuesta)
+  // Desde file:// usar no-cors (evita error CORS)
+  const isHttps = window.location.protocol === 'https:';
+  const fetchMode = isHttps ? 'cors' : 'no-cors';
+
   fetch(GS_URL + '?action=ping', { 
     method: 'GET',
-    mode: 'no-cors',
+    mode: fetchMode,
+    redirect: 'follow',
     signal: ctrl.signal 
   })
-    .then(() => {
+    .then(r => {
       clearTimeout(t);
-      badge.style.background = '#ffffff';
-      badge.style.color = '#16a34a';
-      badge.textContent = '● Sheets ON';
+      // En cors podemos leer la respuesta; en no-cors es opaque pero llegó
+      if (isHttps) {
+        return r.json().then(d => {
+          badge.style.background = '#ffffff';
+          badge.style.color = d.ok ? '#16a34a' : '#e53e3e';
+          badge.textContent = d.ok ? '● Sheets ON' : '○ Sheets OFF';
+        });
+      } else {
+        badge.style.background = '#ffffff';
+        badge.style.color = '#16a34a';
+        badge.textContent = '● Sheets ON';
+      }
     })
     .catch(err => {
       clearTimeout(t);
-      if (err.name === 'AbortError') return; // ya manejado por timeout
+      if (err.name === 'AbortError') return;
       badge.style.background = '#ffffff';
       badge.style.color = '#e53e3e';
       badge.textContent = '○ Sheets OFF';
@@ -3237,7 +3250,7 @@ function confirmarEliminarDias() {
 
 
 // ══════════════ MONITOR EN TIEMPO REAL ══════════════════════
-const MON_URL = "https://script.google.com/macros/s/AKfycbzLQ3pelk2FYoIe9QsmOyA2JXC6f7GY37VvEBAru41vCpyo4_CGum9Z3uwbuK_UPlwL/exec";
+const MON_URL = "https://script.google.com/macros/s/AKfycbz2yyrh6Ek8i1fFRkBEnRtNHbjZguwlhmCOkw-wuWgzzZT2p7BLsdXXvEQC9wIaos_S/exec";
 let monitorInterval = null;
 
 function showMonitorDate() {
