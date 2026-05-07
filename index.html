@@ -2250,8 +2250,14 @@ function calcVuelos() {
     const [ih,im] = ini.split(':').map(Number);
     const [fh,fm] = fin.split(':').map(Number);
     let diffM = (fh*60+fm) - (ih*60+im);
-    // Si fin < ini, asumir que cruzó medianoche (o formato AM/PM)
-    if (diffM <= 0) diffM += 24*60;
+    // Vuelos de helicóptero max ~8h. Si diffM es negativo:
+    // - Si abs <= 240 min (4h) → posible cruce de medianoche → sumar 24h
+    // - Si abs > 240 min → error de entrada → 0h (mostrar advertencia)
+    if (diffM < 0 && Math.abs(diffM) <= 240) {
+      diffM += 24*60; // cruce de medianoche legítimo
+    } else if (diffM < 0) {
+      diffM = 0; // error de entrada — ini y fin inconsistentes
+    }
     const hrs = diffM / 60;
     totalHrs += hrs;
 
@@ -2619,8 +2625,14 @@ function guardarRegistro() {
     const [ih,im] = ini.split(':').map(Number);
     const [fh,fm] = fin.split(':').map(Number);
     let diffM = (fh*60+fm) - (ih*60+im);
-    // Si fin < ini, asumir que cruzó medianoche (o formato AM/PM)
-    if (diffM <= 0) diffM += 24*60;
+    // Vuelos de helicóptero max ~8h. Si diffM es negativo:
+    // - Si abs <= 240 min (4h) → posible cruce de medianoche → sumar 24h
+    // - Si abs > 240 min → error de entrada → 0h (mostrar advertencia)
+    if (diffM < 0 && Math.abs(diffM) <= 240) {
+      diffM += 24*60; // cruce de medianoche legítimo
+    } else if (diffM < 0) {
+      diffM = 0; // error de entrada — ini y fin inconsistentes
+    }
     const hrs = diffM / 60;
     vuelos.push({
       ini, fin, hrs: Math.round(hrs*100)/100,
@@ -3797,11 +3809,13 @@ function actualizarMatBloque(sel, matId) {
     const ini = item.querySelector('.v-ini').value;
     const fin = item.querySelector('.v-fin').value;
     if (!ini || !fin) return;
-    const diffM = (fin.split(':').reduce((a,v,i)=>a+(i?+v:+v*60),0)) -
+    let diffMB = (fin.split(':').reduce((a,v,i)=>a+(i?+v:+v*60),0)) -
                   (ini.split(':').reduce((a,v,i)=>a+(i?+v:+v*60),0));
+    if (diffMB < 0 && Math.abs(diffMB) <= 240) { diffMB += 24*60; }
+    else if (diffMB < 0) { diffMB = 0; }
     vuelos.push({
       ini, fin,
-      hrs: Math.max(0, diffM/60),
+      hrs: Math.round(diffMB/60*100)/100,
       pax:   parseInt(item.querySelector('.v-pax')?.value)||0,
       ll:    parseInt(item.querySelector('.v-ll')?.value)||0,
       carga: parseInt(item.querySelector('.v-carga')?.value)||0,
