@@ -4177,8 +4177,16 @@ function syncConGS() {
       el.textContent = '⬤ GS ' + t;
       el.style.color = 'var(--green)';
     }
+    // Actualizar Dashboard y Bitácora con datos del GS
     var dash = document.getElementById('view-dashboard');
     if (dash && dash.classList.contains('active')) renderDashboard();
+    var bit = document.getElementById('view-bitacora');
+    if (bit && bit.classList.contains('active')) renderBitacora();
+    // Si ninguno está activo, pre-cargar ambos en background
+    if ((!dash || !dash.classList.contains('active')) && (!bit || !bit.classList.contains('active'))) {
+      renderDashboard();
+      renderBitacora();
+    }
   })
   .catch(function() {
     var el = document.getElementById('gs-sync-badge');
