@@ -1529,9 +1529,11 @@ function renderDashboard(){
       mes.pax  = gsMes.reduce(function(a,v){ return a+(v.pax||0); },0);
       mes.kg   = gsMes.reduce(function(a,v){ return a+(v.ll||0)+(v.carga||0); },0);
       mes.fuel = gsMes.reduce(function(a,v){ return a+(v.gls||0); },0);
-      var maxProg = 0, maxCumpl = 0;
-      gsMes.forEach(function(v){ if(v.prog>maxProg) maxProg=v.prog; if(v.cumpl>maxCumpl) maxCumpl=v.cumpl; });
-      if (maxProg > mes.prog) { mes.prog = maxProg; mes.cumpl = maxCumpl; }
+      // Usar resumen acumulado del GS para cumplimiento
+      if (GS_DATA.resumen && GS_DATA.resumen.prog > mes.prog) {
+        mes.prog  = GS_DATA.resumen.prog;
+        mes.cumpl = GS_DATA.resumen.cumpl;
+      }
       gsMes.forEach(function(v) {
         var hk = v.heli || 'Sin tipo';
         if (!mes.porHeli[hk]) mes.porHeli[hk] = {hrs:0,segs:0,pax:0,kg:0,mat:v.mat||''};
@@ -1539,6 +1541,13 @@ function renderDashboard(){
         mes.porHeli[hk].segs += 1;
         mes.porHeli[hk].pax  += v.pax||0;
         mes.porHeli[hk].kg   += (v.ll||0)+(v.carga||0);
+        // Por proyecto (base_v = destino operacional)
+        var pk = v.base_v || v.base || 'Sin proyecto';
+        if (!mes.porProy[pk]) mes.porProy[pk] = {hrs:0,segs:0,pax:0,kg:0};
+        mes.porProy[pk].hrs  += v.hrs||0;
+        mes.porProy[pk].segs += 1;
+        mes.porProy[pk].pax  += v.pax||0;
+        mes.porProy[pk].kg   += (v.ll||0)+(v.carga||0);
       });
     }
   }
@@ -2052,7 +2061,7 @@ function renderTotals(){
   });
 
   // ── Merge tipos desde GS_DATA ────────────────────────────────
-  if (GS_DATA && Array.isArray(GS_DATA.vuelos) && GS_DATA.vuelos.length > mesObj.segs) {
+  if (GS_DATA && Array.isArray(GS_DATA.vuelos) && GS_DATA.vuelos.length > 0) {
     // Reset tipoV y recalcular desde GS si tiene más datos
     tipoV.ll = 0; tipoV.interna = 0; tipoV.pax_solo = 0; tipoV.mixto = 0; tipoV.ferri = 0;
     const mesPfx = cur.toISOString ? dkey(cur).slice(0,7) : '';
