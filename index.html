@@ -1346,7 +1346,13 @@ let cur = (function() {
 
 
 // ── Helpers ──
-function dkey(d){ return d.toISOString().split('T')[0]; }
+function dkey(d){
+  // Usar fecha LOCAL del dispositivo — no UTC — para evitar desfase de timezone
+  var y = d.getFullYear();
+  var m = d.getMonth() + 1;
+  var dd = d.getDate();
+  return y + '-' + (m<10?'0':'') + m + '-' + (dd<10?'0':'') + dd;
+}
 function fmtDate(d){ return d.toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}).replace('.',''); }
 function fmtDay(d){
   const days=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -4199,7 +4205,16 @@ function initInstructorSelect() {
 function syncConGS() {
   if (!GS_URL || GS_URL.includes('PEGAR_URL')) return;
   var mes = dkey(new Date()).slice(0,7);
-  // cors funciona tanto desde https:// como desde file:// con Apps Script
+  var isFile = window.location.protocol === 'file:';
+
+  if (isFile) {
+    // Desde file:// Chrome bloquea fetch externo
+    // Usar script tag JSONP que sí funciona desde file://
+    syncConGS_jsonp(mes);
+    return;
+  }
+
+  // Desde https:// usar fetch normal
   fetch(GS_URL + '?action=mes&mes=' + mes, {
     mode: 'cors', redirect: 'follow'
   })
@@ -4207,12 +4222,7 @@ function syncConGS() {
   .then(function(data) {
     if (!data || !Array.isArray(data.vuelos)) return;
     GS_DATA = data;
-    var el = document.getElementById('gs-sync-badge');
-    if (el) {
-      var t = new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
-      el.textContent = '⬤ GS ' + t;
-      el.style.color = 'var(--green)';
-    }
+    actualizarBadgeGS();
     renderDashboard();
     renderBitacora();
   })
@@ -4220,6 +4230,41 @@ function syncConGS() {
     var el = document.getElementById('gs-sync-badge');
     if (el) { el.textContent = '⬤ GS off'; el.style.color = 'var(--muted)'; }
   });
+}
+
+// Callback global para JSONP
+function _gsCallback(data) {
+  if (!data || !Array.isArray(data.vuelos)) return;
+  GS_DATA = data;
+  actualizarBadgeGS();
+  renderDashboard();
+  renderBitacora();
+  // Limpiar el script tag
+  var old = document.getElementById('_gs_jsonp_script');
+  if (old) old.remove();
+}
+
+function actualizarBadgeGS() {
+  var el = document.getElementById('gs-sync-badge');
+  if (el) {
+    var t = new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+    el.textContent = '⬤ GS ' + t;
+    el.style.color = 'var(--green)';
+  }
+}
+
+function syncConGS_jsonp(mes) {
+  // Eliminar script anterior si existe
+  var old = document.getElementById('_gs_jsonp_script');
+  if (old) old.remove();
+  var script = document.createElement('script');
+  script.id = '_gs_jsonp_script';
+  script.src = GS_URL + '?action=mes&mes=' + mes + '&callback=_gsCallback';
+  script.onerror = function() {
+    var el = document.getElementById('gs-sync-badge');
+    if (el) { el.textContent = '⬤ GS off'; el.style.color = 'var(--muted)'; }
+  };
+  document.head.appendChild(script);
 }
 
 function iniciarSyncGS() {
