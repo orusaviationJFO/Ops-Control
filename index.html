@@ -519,7 +519,7 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
 
 <!-- DASHBOARD -->
 <div class="view active" id="view-dashboard">
-<div style="text-align:right;padding:2px 14px 0;"><span id="gs-sync-badge" style="font-size:10px;color:var(--muted);font-family:var(--mono);cursor:pointer" onclick="syncConGS()" title="Toca para sincronizar">⬤ GS --:--</span></div>
+<div style="text-align:right;padding:2px 14px 0;"><span id="soa-badge" onclick="cambiarNombreSOA()" style="font-size:11px;color:var(--muted);font-family:var(--mono);cursor:pointer;margin-right:12px" title="Clic para cambiar tu nombre">👤 Sin identificar</span><span id="gs-sync-badge" style="font-size:10px;color:var(--muted);font-family:var(--mono);cursor:pointer" onclick="syncConGS()" title="Toca para sincronizar">⬤ GS --:--</span></div>
 
   <!-- ① HORAS TOTALES MES — Hero card -->
   <div style="background:linear-gradient(135deg,#e53e3e,#c53030);border-radius:14px;padding:16px 18px;margin-bottom:12px">
@@ -3300,6 +3300,7 @@ actualizarInfoRespaldo();
 initInstructorSelect();
 inicializarPilotos();
 iniciarSyncGS();
+inicializarSOA();
 
 
 // ── Badge Sheets: ping con no-cors (funciona desde file://) ──
@@ -4435,6 +4436,41 @@ function validarDuplicacionBloqueGLS(input, n) {
     } else {
       warn.style.display = 'none';
     }
+  }
+}
+
+
+// ── Identificación del SOA ────────────────────────────────────────
+function inicializarSOA() {
+  var nombre = localStorage.getItem('soa_nombre');
+  if (!nombre) {
+    nombre = prompt('¿Cuál es tu nombre? (Se guardará para identificar tus registros)', '');
+    if (nombre && nombre.trim()) {
+      localStorage.setItem('soa_nombre', nombre.trim());
+    }
+  }
+  actualizarBadgeSOA();
+}
+
+function getNombreSOA() {
+  return localStorage.getItem('soa_nombre') || 'SOA sin identificar';
+}
+
+function actualizarBadgeSOA() {
+  var el = document.getElementById('soa-badge');
+  if (el) {
+    var nombre = localStorage.getItem('soa_nombre');
+    el.textContent = nombre ? '👤 ' + nombre : '👤 Sin identificar';
+    el.title = 'Clic para cambiar tu nombre';
+  }
+}
+
+function cambiarNombreSOA() {
+  var actual = localStorage.getItem('soa_nombre') || '';
+  var nuevo = prompt('Ingresa tu nombre:', actual);
+  if (nuevo && nuevo.trim()) {
+    localStorage.setItem('soa_nombre', nuevo.trim());
+    actualizarBadgeSOA();
   }
 }
 
