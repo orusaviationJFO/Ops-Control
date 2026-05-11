@@ -1789,6 +1789,14 @@ function renderDashboard(){
       });
     });
 
+    // ── Merge FTL desde GS_DATA ───────────────────────────────
+    if (GS_DATA && Array.isArray(GS_DATA.vuelos)) {
+      GS_DATA.vuelos.forEach(function(v) {
+        if (!v.fecha || !v.piloto) return;
+        acumPiloto(v.piloto, v.heli || '', v.hrs || 0, v.fecha);
+      });
+    }
+
     if (!Object.keys(ftlPiloto).length) {
       ftlEl.innerHTML = '<div style="color:var(--muted);font-size:13px">Sin datos de pilotos registrados</div>';
     } else {
@@ -2042,6 +2050,23 @@ function renderTotals(){
       });
     });
   });
+
+  // ── Merge tipos desde GS_DATA ────────────────────────────────
+  if (GS_DATA && Array.isArray(GS_DATA.vuelos) && GS_DATA.vuelos.length > mesObj.segs) {
+    // Reset tipoV y recalcular desde GS si tiene más datos
+    tipoV.ll = 0; tipoV.interna = 0; tipoV.pax_solo = 0; tipoV.mixto = 0; tipoV.ferri = 0;
+    const mesPfx = cur.toISOString ? dkey(cur).slice(0,7) : '';
+    GS_DATA.vuelos
+      .filter(function(v){ return v.fecha && v.fecha.startsWith(mesPfx); })
+      .forEach(function(v) {
+        var t = v.tipo || '';
+        if      (t === 'll')       tipoV.ll++;
+        else if (t === 'interna')  tipoV.interna++;
+        else if (t === 'mixto')    tipoV.mixto++;
+        else if (t === 'ferri')    tipoV.ferri++;
+        else                       tipoV.pax_solo++;
+      });
+  }
 
   const fmtH  = h  => h.toFixed(1)+'h';
   const fmtKg = kg => kg>=1000?(kg/1000).toFixed(1)+'t':kg.toLocaleString()+' kg';
