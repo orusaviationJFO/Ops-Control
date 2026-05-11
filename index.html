@@ -4199,13 +4199,16 @@ function initInstructorSelect() {
 function syncConGS() {
   if (window.location.protocol !== 'https:') return;
   if (!GS_URL || GS_URL.includes('PEGAR_URL')) return;
-  var mes = cur.toISOString().slice(0,7);
+  // Usar dkey(new Date()) para obtener la fecha real local (no UTC)
+  var hoy = dkey(new Date());
+  var mes = hoy.slice(0,7);
+  // Timeout de 30s — el GS puede tardar en responder
   var ctrl = new AbortController();
-  setTimeout(function(){ ctrl.abort(); }, 8000);
+  var timer = setTimeout(function(){ ctrl.abort(); }, 30000);
   fetch(GS_URL + '?action=mes&mes=' + mes, {
     mode: 'cors', redirect: 'follow', signal: ctrl.signal
   })
-  .then(function(r){ return r.json(); })
+  .then(function(r){ clearTimeout(timer); return r.json(); })
   .then(function(data) {
     if (!data || !Array.isArray(data.vuelos)) return;
     GS_DATA = data;
@@ -4215,18 +4218,12 @@ function syncConGS() {
       el.textContent = '⬤ GS ' + t;
       el.style.color = 'var(--green)';
     }
-    // Actualizar Dashboard y Bitácora con datos del GS
-    var dash = document.getElementById('view-dashboard');
-    if (dash && dash.classList.contains('active')) renderDashboard();
-    var bit = document.getElementById('view-bitacora');
-    if (bit && bit.classList.contains('active')) renderBitacora();
-    // Si ninguno está activo, pre-cargar ambos en background
-    if ((!dash || !dash.classList.contains('active')) && (!bit || !bit.classList.contains('active'))) {
-      renderDashboard();
-      renderBitacora();
-    }
+    // Siempre actualizar Dashboard y Bitácora
+    renderDashboard();
+    renderBitacora();
   })
   .catch(function() {
+    clearTimeout(timer);
     var el = document.getElementById('gs-sync-badge');
     if (el) { el.textContent = '⬤ GS off'; el.style.color = 'var(--muted)'; }
   });
