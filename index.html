@@ -4223,7 +4223,8 @@ function syncConGS() {
 }
 
 function iniciarSyncGS() {
-  setTimeout(syncConGS, 2000);
+  // Llamar inmediatamente sin delay — el GS tarda ~10s y el render se actualiza al llegar
+  syncConGS();
   setInterval(syncConGS, 5 * 60 * 1000);
 }
 
