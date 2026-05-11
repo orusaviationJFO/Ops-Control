@@ -2060,22 +2060,25 @@ function renderTotals(){
     });
   });
 
-  // ── Merge tipos desde GS_DATA ────────────────────────────────
+  // ── Merge tipos desde GS_DATA → actualiza mes.tipoVuelos ──────
   if (GS_DATA && Array.isArray(GS_DATA.vuelos) && GS_DATA.vuelos.length > 0) {
-    // Reset tipoV y recalcular desde GS si tiene más datos
-    tipoV.ll = 0; tipoV.interna = 0; tipoV.pax_solo = 0; tipoV.mixto = 0; tipoV.ferri = 0;
-    const mesPfx = cur.toISOString ? dkey(cur).slice(0,7) : '';
-    GS_DATA.vuelos
-      .filter(function(v){ return v.fecha && v.fecha.startsWith(mesPfx); })
-      .forEach(function(v) {
-        var t = v.tipo || '';
-        if      (t === 'll')       tipoV.ll++;
-        else if (t === 'interna')  tipoV.interna++;
-        else if (t === 'mixto')    tipoV.mixto++;
-        else if (t === 'ferri')    tipoV.ferri++;
-        else                       tipoV.pax_solo++;
+    var mesPfxT = dkey(cur).slice(0,7);
+    var gsMesT = GS_DATA.vuelos.filter(function(v){ return v.fecha && v.fecha.startsWith(mesPfxT); });
+    if (gsMesT.length > 0) {
+      // Reset y recalcular mes.tipoVuelos desde GS
+      mes.tipoVuelos = { pax_solo:0, pax_carga:0, carga_int:0, carga_ext:0, ferri:0 };
+      gsMesT.forEach(function(v) {
+        var ll=v.ll||0, ci=v.carga||0, p=v.pax||0;
+        if      (ll>0 && p>0)  mes.tipoVuelos.pax_carga++;
+        else if (ll>0)         mes.tipoVuelos.carga_ext++;
+        else if (ci>0 && p>0)  mes.tipoVuelos.pax_carga++;
+        else if (ci>0)         mes.tipoVuelos.carga_int++;
+        else if (p>0)          mes.tipoVuelos.pax_solo++;
+        else                   mes.tipoVuelos.ferri++;
       });
+    }
   }
+
 
   const fmtH  = h  => h.toFixed(1)+'h';
   const fmtKg = kg => kg>=1000?(kg/1000).toFixed(1)+'t':kg.toLocaleString()+' kg';
