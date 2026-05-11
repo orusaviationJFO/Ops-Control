@@ -1511,43 +1511,88 @@ function renderDashboard(){
 
   // ─ Label mes ─
   // ── Merge GS ─────────────────────────────────────────────────────
+  // ══ MERGE GS_DATA — alimenta TODAS las secciones del Dashboard ══════
   if (GS_DATA && Array.isArray(GS_DATA.vuelos) && GS_DATA.vuelos.length > 0) {
-    var fechaHoyGS = dkey(cur);
-    var mesPfxGS = fechaHoyGS.slice(0,7);
-    var gsHoy = GS_DATA.vuelos.filter(function(v){ return v.fecha === fechaHoyGS; });
-    if (gsHoy.length > hoy.segs) {
-      hoy.segs = gsHoy.length;
-      hoy.hrs  = gsHoy.reduce(function(a,v){ return a+(v.hrs||0); },0);
-      hoy.pax  = gsHoy.reduce(function(a,v){ return a+(v.pax||0); },0);
-      hoy.kg   = gsHoy.reduce(function(a,v){ return a+(v.ll||0)+(v.carga||0); },0);
-      hoy.fuel = gsHoy.reduce(function(a,v){ return a+(v.gls||0); },0);
+    var _fechaHoy = dkey(cur);
+    var _mesPfx   = _fechaHoy.slice(0,7);
+    var _gsHoy    = GS_DATA.vuelos.filter(function(v){ return v.fecha === _fechaHoy; });
+    var _gsMes    = GS_DATA.vuelos.filter(function(v){ return v.fecha && v.fecha.startsWith(_mesPfx); });
+
+    // ── HOY ──────────────────────────────────────────────────────────
+    if (_gsHoy.length >= hoy.segs) {
+      hoy.segs = _gsHoy.length;
+      hoy.hrs  = _gsHoy.reduce(function(a,v){ return a+(v.hrs||0); }, 0);
+      hoy.pax  = _gsHoy.reduce(function(a,v){ return a+(v.pax||0); }, 0);
+      hoy.kg   = _gsHoy.reduce(function(a,v){ return a+(v.ll||0)+(v.carga||0); }, 0);
+      hoy.fuel = _gsHoy.reduce(function(a,v){ return a+(v.gls||0); }, 0);
     }
-    var gsMes = GS_DATA.vuelos.filter(function(v){ return v.fecha && v.fecha.startsWith(mesPfxGS); });
-    if (gsMes.length > mes.segs) {
-      mes.segs = gsMes.length;
-      mes.hrs  = gsMes.reduce(function(a,v){ return a+(v.hrs||0); },0);
-      mes.pax  = gsMes.reduce(function(a,v){ return a+(v.pax||0); },0);
-      mes.kg   = gsMes.reduce(function(a,v){ return a+(v.ll||0)+(v.carga||0); },0);
-      mes.fuel = gsMes.reduce(function(a,v){ return a+(v.gls||0); },0);
-      // Usar resumen acumulado del GS para cumplimiento
-      if (GS_DATA.resumen && GS_DATA.resumen.prog > mes.prog) {
-        mes.prog  = GS_DATA.resumen.prog;
-        mes.cumpl = GS_DATA.resumen.cumpl;
+
+    // ── MES — siempre usar GS si tiene datos ─────────────────────────
+    if (_gsMes.length > 0) {
+      mes.segs = _gsMes.length;
+      mes.hrs  = Math.round(_gsMes.reduce(function(a,v){ return a+(v.hrs||0); }, 0)*100)/100;
+      mes.pax  = _gsMes.reduce(function(a,v){ return a+(v.pax||0); }, 0);
+      mes.kg   = _gsMes.reduce(function(a,v){ return a+(v.ll||0)+(v.carga||0); }, 0);
+      mes.fuel = _gsMes.reduce(function(a,v){ return a+(v.gls||0); }, 0);
+
+      // Días únicos operados
+      var _diasSet = new Set();
+      _gsMes.forEach(function(v){ if(v.fecha) _diasSet.add(v.fecha); });
+      mes.dias = _diasSet.size;
+
+      // Cumplimiento desde resumen
+      if (GS_DATA.resumen) {
+        mes.prog  = GS_DATA.resumen.prog  || mes.prog;
+        mes.cumpl = GS_DATA.resumen.cumpl || mes.cumpl;
       }
-      gsMes.forEach(function(v) {
-        var hk = v.heli || 'Sin tipo';
-        if (!mes.porHeli[hk]) mes.porHeli[hk] = {hrs:0,segs:0,pax:0,kg:0,mat:v.mat||''};
+
+      // Reset estructuras detalladas y reconstruir desde GS
+      mes.porHeli = {};
+      mes.porProy = {};
+      mes.tipoVuelos = { pax_solo:0, pax_carga:0, carga_int:0, carga_ext:0, ferri:0 };
+      byDay = {};
+
+      _gsMes.forEach(function(v) {
+        // Por helicóptero
+        var hk = v.heli || 'Sin equipo';
+        if (!mes.porHeli[hk]) mes.porHeli[hk] = {hrs:0, segs:0, pax:0, kg:0, mat:v.mat||''};
         mes.porHeli[hk].hrs  += v.hrs||0;
         mes.porHeli[hk].segs += 1;
         mes.porHeli[hk].pax  += v.pax||0;
         mes.porHeli[hk].kg   += (v.ll||0)+(v.carga||0);
+
         // Por proyecto (base_v = destino operacional)
         var pk = v.base_v || v.base || 'Sin proyecto';
-        if (!mes.porProy[pk]) mes.porProy[pk] = {hrs:0,segs:0,pax:0,kg:0};
+        if (!mes.porProy[pk]) mes.porProy[pk] = {hrs:0, segs:0, pax:0, kg:0};
         mes.porProy[pk].hrs  += v.hrs||0;
         mes.porProy[pk].segs += 1;
         mes.porProy[pk].pax  += v.pax||0;
         mes.porProy[pk].kg   += (v.ll||0)+(v.carga||0);
+
+        // Por día (para gráfica de días)
+        if (v.fecha) {
+          if (!byDay[v.fecha]) {
+            var _fd = new Date(v.fecha + 'T12:00:00');
+            var _label = _fd.toLocaleDateString('es-CO', {weekday:'short', day:'2-digit', month:'short'});
+            byDay[v.fecha] = {label:_label, hrs:0, segs:0, pax:0, kg:0, fuel:0, proj:new Set(), helis:new Set()};
+          }
+          byDay[v.fecha].hrs  += v.hrs||0;
+          byDay[v.fecha].segs += 1;
+          byDay[v.fecha].pax  += v.pax||0;
+          byDay[v.fecha].kg   += (v.ll||0)+(v.carga||0);
+          byDay[v.fecha].fuel += v.gls||0;
+          if (v.heli)   byDay[v.fecha].helis.add(v.heli);
+          if (v.base_v) byDay[v.fecha].proj.add(v.base_v);
+        }
+
+        // Tipo de vuelos
+        var ll=v.ll||0, ci=v.carga||0, p=v.pax||0;
+        if      (ll>0 && p>0)  mes.tipoVuelos.pax_carga++;
+        else if (ll>0)         mes.tipoVuelos.carga_ext++;
+        else if (ci>0 && p>0)  mes.tipoVuelos.pax_carga++;
+        else if (ci>0)         mes.tipoVuelos.carga_int++;
+        else if (p>0)          mes.tipoVuelos.pax_solo++;
+        else                   mes.tipoVuelos.ferri++;
       });
     }
   }
@@ -1624,23 +1669,6 @@ function renderDashboard(){
     }).join('');
   }
 
-  // ─ ⑤ Tipo de vuelos — merge desde GS_DATA ─
-  if (GS_DATA && Array.isArray(GS_DATA.vuelos) && GS_DATA.vuelos.length > 0) {
-    var _mesPfxT = dkey(cur).slice(0,7);
-    var _gsMesT = GS_DATA.vuelos.filter(function(v){ return v.fecha && v.fecha.startsWith(_mesPfxT); });
-    if (_gsMesT.length > 0) {
-      mes.tipoVuelos = { pax_solo:0, pax_carga:0, carga_int:0, carga_ext:0, ferri:0 };
-      _gsMesT.forEach(function(v) {
-        var ll=v.ll||0, ci=v.carga||0, p=v.pax||0;
-        if      (ll>0 && p>0)  mes.tipoVuelos.pax_carga++;
-        else if (ll>0)         mes.tipoVuelos.carga_ext++;
-        else if (ci>0 && p>0)  mes.tipoVuelos.pax_carga++;
-        else if (ci>0)         mes.tipoVuelos.carga_int++;
-        else if (p>0)          mes.tipoVuelos.pax_solo++;
-        else                   mes.tipoVuelos.ferri++;
-      });
-    }
-  }
   const tvEl = document.getElementById('dash-tipo-vuelos');
   const tv = mes.tipoVuelos;
   const tvTotal = tv.pax_solo+tv.pax_carga+tv.carga_int+tv.carga_ext+tv.ferri || 1;
@@ -2077,6 +2105,37 @@ function renderTotals(){
   });
 
 
+
+  // ── Merge GS_DATA en Totales ────────────────────────────────────
+  if (GS_DATA && Array.isArray(GS_DATA.vuelos) && GS_DATA.vuelos.length > 0) {
+    var _mesPfxTot = cur.toISOString ? dkey(cur).slice(0,7) : mesActual;
+    var _gsTot = GS_DATA.vuelos.filter(function(v){ return v.fecha && v.fecha.startsWith(_mesPfxTot); });
+    if (_gsTot.length > tot.segs) {
+      tot.hrs   = Math.round(_gsTot.reduce(function(a,v){ return a+(v.hrs||0); }, 0)*100)/100;
+      tot.segs  = _gsTot.length;
+      tot.pax   = _gsTot.reduce(function(a,v){ return a+(v.pax||0); }, 0);
+      tot.kg    = _gsTot.reduce(function(a,v){ return a+(v.ll||0)+(v.carga||0); }, 0);
+      tot.fuel  = _gsTot.reduce(function(a,v){ return a+(v.gls||0); }, 0);
+      if (GS_DATA.resumen) {
+        tot.prog  = GS_DATA.resumen.prog  || tot.prog;
+        tot.cumpl = GS_DATA.resumen.cumpl || tot.cumpl;
+      }
+      var _diasTot = new Set();
+      _gsTot.forEach(function(v){ if(v.fecha) _diasTot.add(v.fecha); });
+      tot.dias = _diasTot.size;
+      // Reconstruir byHeli y byProy desde GS
+      _gsTot.forEach(function(v) {
+        var hk = v.heli||'Sin equipo';
+        if(!byHeli[hk]) byHeli[hk]={hrs:0,segs:0,pax:0,kg:0,fuel:0,mat:v.mat||''};
+        byHeli[hk].hrs  += v.hrs||0; byHeli[hk].segs++;
+        byHeli[hk].pax  += v.pax||0; byHeli[hk].kg += (v.ll||0)+(v.carga||0);
+        var pk = v.base_v||v.base||'Sin proyecto';
+        if(!byProy[pk]) byProy[pk]={hrs:0,segs:0,pax:0,kg:0};
+        byProy[pk].hrs += v.hrs||0; byProy[pk].segs++;
+        byProy[pk].pax += v.pax||0; byProy[pk].kg += (v.ll||0)+(v.carga||0);
+      });
+    }
+  }
 
   const fmtH  = h  => h.toFixed(1)+'h';
   const fmtKg = kg => kg>=1000?(kg/1000).toFixed(1)+'t':kg.toLocaleString()+' kg';
