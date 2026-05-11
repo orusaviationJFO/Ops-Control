@@ -1392,7 +1392,9 @@ function showTab(name,tab){
   document.getElementById('view-'+name).classList.add('active');
   if(tab) tab.classList.add('active');
   document.querySelector('.scroll-area')?.scrollTo(0,0);
-
+  // Re-renderizar vistas al cambiar de pestaña para mostrar datos del GS
+  if(name === 'bitacora')  renderBitacora();
+  if(name === 'dashboard') renderDashboard();
 }
 // ── Dashboard — resumen acumulado mensual ──
 function renderDashboard(){
