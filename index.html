@@ -1399,8 +1399,9 @@ function showTab(name,tab){
   if(tab) tab.classList.add('active');
   document.querySelector('.scroll-area')?.scrollTo(0,0);
   // Re-renderizar vistas al cambiar de pestaña para mostrar datos del GS
-  if(name === 'bitacora')  renderBitacora();
-  if(name === 'dashboard') renderDashboard();
+  if(name === 'bitacora')    renderBitacora();
+  if(name === 'dashboard')   renderDashboard();
+  if(name === 'combustible') renderNivelInicial();
 }
 // ── Dashboard — resumen acumulado mensual ──
 function renderDashboard(){
@@ -3152,44 +3153,56 @@ function renderNivelInicial() {
   const el = document.getElementById('nivel-inicial-inputs');
   if (!el) return;
 
-  // Cargar niveles guardados en localStorage si existen
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem('fuel_nivel_inicial') || '{}'); } catch(e) {}
 
-  el.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">' +
-    Object.entries(CAPS).map(([base, cap]) => {
-      const actual = FUEL_NIVEL[base] || 0;
-      const pct    = Math.round(actual / cap * 100);
-      const col    = pct <= 20 ? '#ff2233' : pct <= 30 ? '#ff7733' : pct <= 40 ? '#d69e2e' : '#38a169';
-      return `
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px">
-          <div style="font-weight:700;font-size:12px;color:var(--text);margin-bottom:6px">⛽ ${base}</div>
-          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Cap. máx: ${cap.toLocaleString()} GLS</div>
-          <input type="number"
-            id="nivel-ini-${base.replace(/ /g,'_')}"
-            value="${actual > 0 ? actual.toFixed(0) : ''}"
-            placeholder="GLS actuales"
-            min="0" max="${cap}" step="1"
-            style="width:100%;background:#f7f8fa;border:1px solid var(--border);border-radius:7px;padding:8px;font-size:14px;font-family:var(--mono);color:var(--text);outline:none">
-          <div style="margin-top:5px;font-size:10px;color:${col};font-family:var(--mono)">
-            Actual: ${Math.round(actual).toLocaleString('es-CO')} GLS (${pct}%)
-          </div>
-        </div>`;
-    }).join('') + '</div>';
+  const timestampKey = 'fuel_nivel_timestamp';
+  const ts = localStorage.getItem(timestampKey) || '';
+
+  let html_out = '';
+
+  // Mostrar timestamp del último registro
+  if (ts) {
+    html_out += '<div style="font-size:11px;color:var(--muted);margin-bottom:10px">'+
+      '📅 Último nivel registrado: <strong>' + ts + '</strong></div>';
+  }
+
+  html_out += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">';
+
+  Object.entries(CAPS).forEach(function(entry) {
+    var base = entry[0], cap = entry[1];
+    var actual = FUEL_NIVEL[base] || 0;
+    var pct = Math.round(actual / cap * 100);
+    var color = pct > 50 ? '#38a169' : pct > 20 ? '#d69e2e' : '#e53e3e';
+    var id = 'nivel-ini-' + base.replace(/ /g, '_');
+    html_out += '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">' +
+      '<div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px">' + base.toUpperCase() + '</div>' +
+      '<div style="font-size:12px;color:' + color + ';margin-bottom:6px">Actual: ' + actual.toFixed(0) + ' / ' + cap + ' GLS (' + pct + '%)</div>' +
+      '<input type="number" id="' + id + '" placeholder="Nivel real (GLS)" min="0" max="' + cap + '" step="1"' +
+      ' style="width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-family:var(--mono)">' +
+      '</div>';
+  });
+
+  html_out += '</div>';
+  html_out += '<div style="margin-top:10px;font-size:11px;color:var(--muted)">Deja vacío los tanques que no quieres actualizar.</div>';
+
+  el.innerHTML = html_out;
 }
 
 function guardarNivelInicial() {
   const msg = document.getElementById('nivel-inicial-msg');
   const bases = Object.keys(CAPS);
   let alguno = false;
+  const niveles = {};
 
-  bases.forEach(base => {
+  bases.forEach(function(base) {
     const id  = 'nivel-ini-' + base.replace(/ /g, '_');
     const inp = document.getElementById(id);
-    if (!inp) return;
+    if (!inp || inp.value === '') return;
     const val = parseFloat(inp.value);
     if (!isNaN(val) && val >= 0) {
       FUEL_NIVEL[base] = Math.min(val, CAPS[base]);
+      niveles[base] = FUEL_NIVEL[base];
       alguno = true;
     }
   });
@@ -3200,12 +3213,32 @@ function guardarNivelInicial() {
     return;
   }
 
-  // Persistir en localStorage
+  // Timestamp del registro
+  const ahora = new Date();
+  const ts = ahora.toLocaleDateString('es-CO') + ' ' + ahora.toLocaleTimeString('es-CO', {hour:'2-digit',minute:'2-digit'});
+  localStorage.setItem('fuel_nivel_timestamp', ts);
   localStorage.setItem('fuel_nivel_inicial', JSON.stringify(FUEL_NIVEL));
 
+  // Enviar al GS
+  if (GS_URL && !GS_URL.includes('PEGAR_URL')) {
+    const payload = {
+      tipo: 'nivel_combustible',
+      fecha: dkey(ahora),
+      hora: ts,
+      niveles: niveles,
+      registradoPor: getNombreSOA()
+    };
+    fetch(GS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    }).catch(function(){});
+  }
+
   msg.style.color = 'var(--green)';
-  msg.textContent = '✔ Niveles guardados correctamente';
-  setTimeout(() => { msg.textContent = ''; }, 3000);
+  msg.textContent = '✔ Niveles guardados — ' + ts;
+  setTimeout(function() { msg.textContent = ''; }, 4000);
 
   renderFuelTanks();
   renderNivelInicial();
@@ -3307,6 +3340,7 @@ actualizarInfoRespaldo();
 initInstructorSelect();
 inicializarPilotos();
 iniciarSyncGS();
+renderNivelInicial();
 inicializarSOA();
 
 
