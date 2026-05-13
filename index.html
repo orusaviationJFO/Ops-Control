@@ -2731,8 +2731,8 @@ function guardarRegistro() {
 
   const vuelos = [];
   items.forEach(item => {
-    const ini = item.querySelector('.v-ini').value;
-    const fin = item.querySelector('.v-fin').value;
+    const ini = getTimeClass(item, 'v-ini');
+    const fin = getTimeClass(item, 'v-fin');
     if (!ini || !fin) return;
     const [ih,im] = ini.split(':').map(Number);
     const [fh,fm] = fin.split(':').map(Number);
@@ -4006,8 +4006,8 @@ function actualizarMatBloque(sel, matId) {
 
   const vuelos = [];
   items.forEach(item => {
-    const ini = item.querySelector('.v-ini').value;
-    const fin = item.querySelector('.v-fin').value;
+    const ini = getTimeClass(item, 'v-ini');
+    const fin = getTimeClass(item, 'v-fin');
     if (!ini || !fin) return;
     let diffMB = (fin.split(':').reduce((a,v,i)=>a+(i?+v:+v*60),0)) -
                   (ini.split(':').reduce((a,v,i)=>a+(i?+v:+v*60),0));
