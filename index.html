@@ -3223,7 +3223,7 @@ function guardarNivelInicial() {
   localStorage.setItem('fuel_nivel_timestamp', ts);
   localStorage.setItem('fuel_nivel_inicial', JSON.stringify(FUEL_NIVEL));
 
-  // Enviar al GS
+  // Enviar al GS — igual que vuelos, usar no-cors con JSON
   if (GS_URL && !GS_URL.includes('PEGAR_URL')) {
     const payload = {
       tipo: 'nivel_combustible',
@@ -3232,11 +3232,12 @@ function guardarNivelInicial() {
       niveles: niveles,
       registradoPor: getNombreSOA()
     };
+    // Usar el mismo método que los vuelos
+    const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
     fetch(GS_URL, {
       method: 'POST',
       mode: 'no-cors',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload)
+      body: blob
     }).catch(function(){});
   }
 
