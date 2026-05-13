@@ -3346,7 +3346,7 @@ inicializarSOA();
         return r.json().then(d => {
           badge.style.background = '#ffffff';
           badge.style.color = d.ok ? '#16a34a' : '#e53e3e';
-          badge.textContent = d.ok ? '● Sheets ON' : '○ Sheets OFF';
+          badge.textContent = d.ok ? '● Sheets ON' : '○ Sheets OFF'; if(!d.ok) badge.title='Sin sync automático. Registros y bitácora funcionan normalmente.';
         });
       } else {
         badge.style.background = '#ffffff';
@@ -4331,7 +4331,7 @@ function syncConGS() {
   })
   .catch(function() {
     var el = document.getElementById('gs-sync-badge');
-    if (el) { el.textContent = '⬤ GS off'; el.style.color = 'var(--muted)'; }
+    if (el) { el.textContent = '⬤ GS off'; el.style.color = 'var(--muted)'; el.title = 'Sin sync automático. Registros y bitácora funcionan normalmente.'; }
   });
 }
 
@@ -4365,7 +4365,7 @@ function syncConGS_jsonp(mes) {
   script.src = GS_URL + '?action=mes&mes=' + mes + '&callback=_gsCallback';
   script.onerror = function() {
     var el = document.getElementById('gs-sync-badge');
-    if (el) { el.textContent = '⬤ GS off'; el.style.color = 'var(--muted)'; }
+    if (el) { el.textContent = '⬤ GS off'; el.style.color = 'var(--muted)'; el.title = 'Sin sync automático. Registros y bitácora funcionan normalmente.'; }
   };
   document.head.appendChild(script);
 }
