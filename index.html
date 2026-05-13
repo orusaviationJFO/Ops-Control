@@ -1407,7 +1407,7 @@ function renderDashboard(){
   const k = dkey(cur);
 
   // ─ Calcular mes en curso ─
-  const mesActual = cur.toISOString().slice(0,7); // "2026-04"
+  const mesActual = dkey(cur).slice(0,7);  // usar fecha local, no UTC // "2026-04"
   const nombreMes = cur.toLocaleDateString('es-CO',{month:'long',year:'numeric'});
 
   // Acumular TODOS los días del mes
@@ -1894,7 +1894,7 @@ function renderDashboard(){
 }
 function renderBitacora(){
   const el = document.getElementById('bitacora-list');
-  const mesActual = cur.toISOString().slice(0,7);
+  const mesActual = dkey(cur).slice(0,7);  // usar fecha local, no UTC
 
   // Combinar STORE local con GS_DATA (datos de todos los SOAs)
   const storeMap = {};
@@ -2034,7 +2034,7 @@ function renderBitacora(){
 }
 // ── Totals ──
 function renderTotals(){
-  const mesActual = cur.toISOString().slice(0,7);
+  const mesActual = dkey(cur).slice(0,7);  // usar fecha local, no UTC
   const nombreMes = cur.toLocaleDateString('es-CO',{month:'long',year:'numeric'});
 
   // Filtrar días del mes actual — si no hay datos, mostrar todos los disponibles
