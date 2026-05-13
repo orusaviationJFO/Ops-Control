@@ -2750,9 +2750,9 @@ function guardarRegistro() {
       ini, fin, hrs: Math.round(hrs*100)/100,
       origen: item.querySelector('.v-origen')?.value || '',
       pax:   parseInt(item.querySelector('.v-pax').value)||0,
-      ll:    Math.round(parseFloat(item.querySelector('.v-ll').value)||0),
+      ll:    parseInt(item.querySelector('.v-ll').value)||0,
       carga: parseInt(item.querySelector('.v-carga').value)||0,
-      gls:   Math.round(parseFloat(item.querySelector('.v-gls')?.value)||0),
+      gls:   parseInt(item.querySelector('.v-gls')?.value)||0,
       base: item.querySelector('.v-base')?.value || document.getElementById('f-base').value,
       fuel_loc: item.querySelector('.v-base')?.value || document.getElementById('f-base').value,
       tipo: item.querySelector('.v-tipo')?.value || 'll'
