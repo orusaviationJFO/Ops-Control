@@ -2365,8 +2365,8 @@ function calcVuelos() {
     } else if (diffM < 0) {
       diffM = 0; // error de entrada — ini y fin inconsistentes
     }
-    const hrs = diffM; // minutos enteros (era horas decimales)
-    totalHrs += hrs;
+    const hrs = diffM; // minutos enteros para el STORE
+    totalHrs += diffM / 60; // FTL necesita horas
 
     // Detectar cambio de configuración (LL ↔ otro tipo)
     if (prevTipo !== null && prevTipo !== tipo) {
@@ -2390,7 +2390,7 @@ function calcVuelos() {
 
     // Acumular LL continua
     if (tipo === 'll') {
-      llContinua += hrs;
+      llContinua += hrs / 60; // horas (hrs está en minutos)
     } else {
       // Tipo diferente a LL también rompe la racha
       llMaxContinua = Math.max(llMaxContinua, llContinua);
