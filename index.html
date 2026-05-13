@@ -2706,11 +2706,11 @@ function addVuelo() {
       </div>
     </div>
     <div class="frow" style="margin-bottom:0"><label>Tanqueo en este vuelo (gls)</label><input type="number" class="v-gls" placeholder="0" min="0" onchange="validarGLSIndividual(this)"></div>`;
-  // Inicializar selectores de hora 24h
+  // Inicializar selectores de hora 24h — sin valor por defecto
   var wIni = div.querySelector('.v-ini-wrap');
   var wFin = div.querySelector('.v-fin-wrap');
-  if (wIni) wIni.innerHTML = crearSelectorHora('','v-ini','07:00','recalcFTL()');
-  if (wFin) wFin.innerHTML = crearSelectorHora('','v-fin','07:30','recalcFTL()');
+  if (wIni) wIni.innerHTML = crearSelectorHora('','v-ini','','recalcFTL()');
+  if (wFin) wFin.innerHTML = crearSelectorHora('','v-fin','','recalcFTL()');
   // Inicializar visibilidad
   actualizarCamposVuelo(div.querySelector('.v-tipo'));
   el.appendChild(div);
@@ -4484,12 +4484,12 @@ function cambiarNombreSOA() {
 
 // ── Selector de hora 24h (reemplaza type="time" para iOS) ────────
 function crearSelectorHora(id, claseExtra, valorDefault, onChange) {
-  var horas = '';
+  var horas = '<option value="">HH</option>';
   for (var h = 5; h <= 20; h++) {
-    var hh = h < 10 ? '0'+h : h;
+    var hh = h < 10 ? '0'+h : ''+h;
     horas += '<option value="'+hh+'"'+(valorDefault&&valorDefault.startsWith(hh)?' selected':'')+'>'+hh+'</option>';
   }
-  var mins = '';
+  var mins = '<option value="">MM</option>';
   for (var i = 0; i <= 59; i++) {
     var mm = i < 10 ? '0'+i : ''+i;
     var selM = valorDefault && valorDefault.slice(3,5) === mm ? ' selected' : '';
@@ -4516,10 +4516,12 @@ function getTimeValue(id) {
 }
 
 function getTimeClass(item, cls) {
-  // Obtener valor de selector de hora por clase
   var h = item.querySelector('.'+cls+'-h');
   var m = item.querySelector('.'+cls+'-m');
-  if (h && m) return h.value + ':' + m.value;
+  if (h && m) {
+    if (!h.value || !m.value) return ''; // vacío = no ingresado
+    return h.value + ':' + m.value;
+  }
   var inp = item.querySelector('.'+cls);
   return inp ? inp.value : '';
 }
