@@ -1960,7 +1960,7 @@ function renderBitacora(){
     // Registros de ese día
     dayObj.registros.forEach(r => {
       // _gsHrs=true → ya en horas. Sin marca → STORE → minutos, convertir
-      const totalHrs = (r.vuelos||[]).reduce((a,v) => a + (v._gsHrs ? (v.hrs||0) : (v.hrs||0)/60), 0);
+      const totalHrs = (r.vuelos||[]).reduce((a,v) => a + (v.hrs<24 ? (v.hrs||0) : (v.hrs||0)/60), 0);
       const totalKg  = (r.vuelos||[]).reduce((a,v)=>a+(v.ll||0)+(v.carga||0), 0);
       const totalPax = (r.vuelos||[]).reduce((a,v)=>a+(v.pax||0), 0);
 
@@ -2019,7 +2019,7 @@ function renderBitacora(){
             <span style="font-family:var(--mono);color:var(--accent);font-weight:600;width:36px;flex-shrink:0">${v.ini||'—'}</span>
             <span style="flex:1;color:var(--text)">${ruta}</span>
             <span style="font-family:var(--mono);color:var(--muted);width:34px;text-align:right">${v.fin||'—'}</span>
-            <span style="font-family:var(--mono);font-weight:600;color:var(--green);width:36px;text-align:right">${(v._gsHrs?(v.hrs>=1?(v.hrs).toFixed(1)+"h":Math.round(v.hrs*60)+"min"):(v.hrs>=60?(v.hrs/60).toFixed(1)+"h":Math.round(v.hrs)+"min"))}</span>
+            <span style="font-family:var(--mono);font-weight:600;color:var(--green);width:36px;text-align:right">${(v.hrs<24?(v.hrs>=1?(v.hrs).toFixed(1)+"h":Math.round(v.hrs*60)+"min"):(v.hrs>=60?(v.hrs/60).toFixed(1)+"h":Math.round(v.hrs)+"min"))}</span>
             <span style="color:var(--muted);width:60px;text-align:right;font-size:10px">${tipoLabel}</span>
             ${v.pax>0?`<span class="lc pax" style="font-size:9px">${v.pax}p</span>`:''}
             ${(v.ll||0)>0?`<span class="lc kg" style="font-size:9px">${v.ll}kg</span>`:''}`;
@@ -2696,13 +2696,13 @@ function addVuelo() {
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px">
       <div class="v-campo-ll">
-        <div class="frow" style="margin-bottom:0"><label>Línea larga (kg)</label><input type="number" class="v-ll" placeholder="0" min="0"></div>
+        <div class="frow" style="margin-bottom:0"><label>Línea larga (kg)</label><input type="number" class="v-ll" placeholder="0" min="0" step="1"></div>
       </div>
       <div class="v-campo-ci" style="display:none">
-        <div class="frow" style="margin-bottom:0"><label>Carga interna / equipaje (kg)</label><input type="number" class="v-carga" placeholder="0" min="0"></div>
+        <div class="frow" style="margin-bottom:0"><label>Carga interna / equipaje (kg)</label><input type="number" class="v-carga" placeholder="0" min="0" step="1"></div>
       </div>
       <div class="v-campo-pax" style="display:none">
-        <div class="frow" style="margin-bottom:0"><label>Pasajeros</label><input type="number" class="v-pax" placeholder="0" min="0"></div>
+        <div class="frow" style="margin-bottom:0"><label>Pasajeros</label><input type="number" class="v-pax" placeholder="0" min="0" step="1"></div>
       </div>
     </div>
     <div class="frow" style="margin-bottom:0"><label>Tanqueo en este vuelo (gls)</label><input type="number" class="v-gls" placeholder="0" min="0" onchange="validarGLSIndividual(this)"></div>`;
@@ -3936,13 +3936,13 @@ function addVueloBloque(n) {
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px">
       <div class="v-campo-ll">
-        <div class="frow" style="margin-bottom:0"><label>Línea larga (kg)</label><input type="number" class="v-ll" placeholder="0" min="0"></div>
+        <div class="frow" style="margin-bottom:0"><label>Línea larga (kg)</label><input type="number" class="v-ll" placeholder="0" min="0" step="1"></div>
       </div>
       <div class="v-campo-ci" style="display:none">
-        <div class="frow" style="margin-bottom:0"><label>Carga interna / equipaje (kg)</label><input type="number" class="v-carga" placeholder="0" min="0"></div>
+        <div class="frow" style="margin-bottom:0"><label>Carga interna / equipaje (kg)</label><input type="number" class="v-carga" placeholder="0" min="0" step="1"></div>
       </div>
       <div class="v-campo-pax" style="display:none">
-        <div class="frow" style="margin-bottom:0"><label>Pasajeros</label><input type="number" class="v-pax" placeholder="0" min="0"></div>
+        <div class="frow" style="margin-bottom:0"><label>Pasajeros</label><input type="number" class="v-pax" placeholder="0" min="0" step="1"></div>
       </div>
     </div>
     <div class="frow" style="margin-bottom:0"><label>Tanqueo en este vuelo (gls)</label><input type="number" class="v-gls" placeholder="0" min="0" onchange="validarGLSIndividual(this)"></div>
