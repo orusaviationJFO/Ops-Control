@@ -1835,7 +1835,7 @@ function renderDashboard(){
     Object.entries(STORE).forEach(([fecha, dayObj]) => {
       if (!dayObj.registros?.length) return;
       dayObj.registros.forEach(r => {
-        const hrsDay = (r.vuelos||[]).reduce((a,v) => a+(v.hrs||0), 0);
+        const hrsDay = (r.vuelos||[]).reduce((a,v) => a + (v._gsHrs ? (v.hrs||0) : (v.hrs||0)/60), 0);
         const heli   = r.heli || '';
         if (r.piloto)   acumPiloto(r.piloto,   heli, hrsDay, fecha);
         if (r.copiloto) acumPiloto(r.copiloto, heli, hrsDay, fecha);
@@ -1952,14 +1952,15 @@ function renderBitacora(){
       const porHeli = {};
       vGS.forEach(v => {
         if (!porHeli[v.heli]) porHeli[v.heli] = { heli:v.heli, mat:v.mat||'', base:v.base||'', piloto:v.piloto||'', vuelos:[], estadoDia:'OPERÓ' };
-        porHeli[v.heli].vuelos.push({ ini:v.ini, fin:v.fin, hrs:v.hrs||0, pax:v.pax||0, ll:v.ll||0, carga:v.carga||0, gls:v.gls||0, base:v.base_v||v.base||'' });
+        porHeli[v.heli].vuelos.push({ ini:v.ini, fin:v.fin, hrs:v.hrs||0, pax:v.pax||0, ll:v.ll||0, carga:v.carga||0, gls:v.gls||0, base:v.base_v||v.base||'', _gsHrs:true });
       });
       dayObj.registros = Object.values(porHeli);
     }
 
     // Registros de ese día
     dayObj.registros.forEach(r => {
-      const totalHrs = (r.vuelos||[]).reduce((a,v)=>a+(v.hrs||0), 0);
+      // _gsHrs=true → ya en horas. Sin marca → STORE → minutos, convertir
+      const totalHrs = (r.vuelos||[]).reduce((a,v) => a + (v._gsHrs ? (v.hrs||0) : (v.hrs||0)/60), 0);
       const totalKg  = (r.vuelos||[]).reduce((a,v)=>a+(v.ll||0)+(v.carga||0), 0);
       const totalPax = (r.vuelos||[]).reduce((a,v)=>a+(v.pax||0), 0);
 
@@ -2364,7 +2365,7 @@ function calcVuelos() {
     } else if (diffM < 0) {
       diffM = 0; // error de entrada — ini y fin inconsistentes
     }
-    const hrs = diffM / 60;
+    const hrs = diffM; // minutos enteros (era horas decimales)
     totalHrs += hrs;
 
     // Detectar cambio de configuración (LL ↔ otro tipo)
@@ -3578,8 +3579,8 @@ function renderMonitor(data) {
   // KPIs
   // Normalizar campos que vienen de Sheets en formatos variables
   vuelos = vuelos.map(v => {
-    // hrs: viene siempre como horas decimales (ej: 0.3 = 18 min, 1.5 = 1h30min)
-    let hrs = Math.round((parseFloat(v.hrs) || 0) * 100) / 100;
+    // hrs: viene como MINUTOS enteros (ej: 18 = 18 min, 90 = 1h30min)
+    let hrs = parseFloat(v.hrs) || 0;  // minutos
     // ini/fin: pueden venir como "1899-12-30T07:30:00.000Z" o "07:30:00" o "07:30"
     const parseTime = (t) => {
       if (!t) return '—';
@@ -3592,7 +3593,7 @@ function renderMonitor(data) {
     };
     return {...v, hrs, ini: parseTime(v.ini), fin: parseTime(v.fin)};
   });
-  const totalHrs = vuelos.reduce((a,v)=>a+(parseFloat(v.hrs)||0),0);
+  const totalHrs = vuelos.reduce((a,v)=>a+(parseFloat(v.hrs)||0),0) / 60; // min→h
   const totalPax = vuelos.reduce((a,v)=>a+(parseInt(v.pax)||0),0);
   const totalKg  = vuelos.reduce((a,v)=>a+(parseInt(v.ll)||0)+(parseInt(v.carga)||0),0);
   const equipos  = [...new Set(vuelos.map(v=>v.heli).filter(Boolean))];
