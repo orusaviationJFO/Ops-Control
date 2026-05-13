@@ -3233,13 +3233,7 @@ function guardarNivelInicial() {
       registradoPor: getNombreSOA()
     };
     // Usar el mismo método que los vuelos
-    const fd = new FormData();
-    fd.append('payload', JSON.stringify(payload));
-    fetch(GS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      body: fd
-    }).catch(function(){});
+    enviarASheets(payload);
   }
 
   msg.style.color = 'var(--green)';
