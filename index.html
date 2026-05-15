@@ -1947,11 +1947,48 @@ function renderBitacora(){
     // Si el día viene del GS, agregar vuelos del GS como registros sintéticos
     if (dayObj._fromGS && GS_DATA && Array.isArray(GS_DATA.vuelos)) {
       const vGS = GS_DATA.vuelos.filter(v => v.fecha === fecha);
-      // Agrupar por heli
+      // Agrupar por heli — capturar todos los campos del GS
       const porHeli = {};
       vGS.forEach(v => {
-        if (!porHeli[v.heli]) porHeli[v.heli] = { heli:v.heli, mat:v.mat||'', base:v.base||'', piloto:v.piloto||'', vuelos:[], estadoDia:'OPERÓ' };
-        porHeli[v.heli].vuelos.push({ ini:v.ini, fin:v.fin, hrs:v.hrs||0, pax:v.pax||0, ll:v.ll||0, carga:v.carga||0, gls:v.gls||0, base:v.base_v||v.base||'', _gsHrs:true });
+        if (!porHeli[v.heli]) porHeli[v.heli] = {
+          heli:      v.heli,
+          mat:       v.mat       || '',
+          base:      v.base      || '',
+          piloto:    v.piloto    || '',
+          proyecto:  v.proyecto  || '',
+          dutyIn:    v.dutyIn    || '',
+          dutyOut:   v.dutyOut   || '',
+          gls:       0,
+          prog:      v.prog      || 0,
+          cumpl:     v.cumpl     || 0,
+          estadoDia: v.estadoDia || 'OPERÓ',
+          vuelos:    []
+        };
+        // Acumular gls del nivel de registro (no de cada vuelo individual)
+        if (v.gls > 0) porHeli[v.heli].gls += v.gls;
+        // Inferir tipo correctamente antes de guardar el vuelo
+        let tipo = v.tipo || '';
+        if (!tipo) {
+          const ll = v.ll || 0, ci = v.carga || 0, p = v.pax || 0;
+          if      (ll > 0 && p === 0) tipo = 'll';
+          else if (ll > 0 && p > 0)   tipo = 'mixto';
+          else if (ci > 0 && p > 0)   tipo = 'mixto';
+          else if (ci > 0)             tipo = 'interna';
+          else if (p > 0)              tipo = 'pax';
+          else                         tipo = 'ferri';
+        }
+        porHeli[v.heli].vuelos.push({
+          ini:    v.ini,
+          fin:    v.fin,
+          hrs:    v.hrs    || 0,
+          pax:    v.pax    || 0,
+          ll:     v.ll     || 0,
+          carga:  v.carga  || 0,
+          gls:    v.gls    || 0,
+          base:   v.base_v || v.base || '',
+          tipo:   tipo,
+          _gsHrs: true
+        });
       });
       dayObj.registros = Object.values(porHeli);
     }
