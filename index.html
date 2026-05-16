@@ -1947,48 +1947,29 @@ function renderBitacora(){
     // Si el día viene del GS, agregar vuelos del GS como registros sintéticos
     if (dayObj._fromGS && GS_DATA && Array.isArray(GS_DATA.vuelos)) {
       const vGS = GS_DATA.vuelos.filter(v => v.fecha === fecha);
-      // Agrupar por heli — capturar todos los campos del GS
+      // Agrupar por heli
       const porHeli = {};
       vGS.forEach(v => {
-        if (!porHeli[v.heli]) porHeli[v.heli] = {
-          heli:      v.heli,
-          mat:       v.mat       || '',
-          base:      v.base      || '',
-          piloto:    v.piloto    || '',
-          proyecto:  v.proyecto  || '',
-          dutyIn:    v.dutyIn    || '',
-          dutyOut:   v.dutyOut   || '',
-          gls:       0,
-          prog:      v.prog      || 0,
-          cumpl:     v.cumpl     || 0,
-          estadoDia: v.estadoDia || 'OPERÓ',
-          vuelos:    []
-        };
-        // Acumular gls del nivel de registro (no de cada vuelo individual)
-        if (v.gls > 0) porHeli[v.heli].gls += v.gls;
-        // Inferir tipo correctamente antes de guardar el vuelo
-        let tipo = v.tipo || '';
-        if (!tipo) {
-          const ll = v.ll || 0, ci = v.carga || 0, p = v.pax || 0;
-          if      (ll > 0 && p === 0) tipo = 'll';
-          else if (ll > 0 && p > 0)   tipo = 'mixto';
-          else if (ci > 0 && p > 0)   tipo = 'mixto';
-          else if (ci > 0)             tipo = 'interna';
-          else if (p > 0)              tipo = 'pax';
-          else                         tipo = 'ferri';
+        if (!porHeli[v.heli]) porHeli[v.heli] = { heli:v.heli, mat:v.mat||'', base:v.base||'', piloto:v.piloto||'', vuelos:[], estadoDia:'OPERÓ' };
+        // Normalizar tipo: puede llegar como clave corta ('ll') o texto largo del mapTipo()
+        var tipoRaw = v.tipo || '';
+        var tipoNorm = tipoRaw;
+        if (tipoRaw.toLowerCase().includes('larga') || tipoRaw.toLowerCase().includes('externa')) tipoNorm = 'll';
+        else if (tipoRaw.toLowerCase().includes('interna') || tipoRaw.toLowerCase().includes('equipaje')) tipoNorm = 'interna';
+        else if (tipoRaw.toLowerCase().includes('mixto')) tipoNorm = 'mixto';
+        else if (tipoRaw.toLowerCase().includes('ferri') || tipoRaw.toLowerCase().includes('posicion')) tipoNorm = 'ferri';
+        else if (tipoRaw.toLowerCase().includes('pasajero') || tipoRaw === 'pax') tipoNorm = 'pax';
+        // Si tipo sigue vacío, inferir por los valores
+        if (!tipoNorm) {
+          const ll = v.ll||0, ci = v.carga||0, p = v.pax||0;
+          if      (ll > 0 && p === 0) tipoNorm = 'll';
+          else if (ll > 0 && p > 0)   tipoNorm = 'mixto';
+          else if (ci > 0 && p > 0)   tipoNorm = 'mixto';
+          else if (ci > 0)             tipoNorm = 'interna';
+          else if (p > 0)              tipoNorm = 'pax';
+          else                         tipoNorm = 'ferri';
         }
-        porHeli[v.heli].vuelos.push({
-          ini:    v.ini,
-          fin:    v.fin,
-          hrs:    v.hrs    || 0,
-          pax:    v.pax    || 0,
-          ll:     v.ll     || 0,
-          carga:  v.carga  || 0,
-          gls:    v.gls    || 0,
-          base:   v.base_v || v.base || '',
-          tipo:   tipo,
-          _gsHrs: true
-        });
+        porHeli[v.heli].vuelos.push({ ini:v.ini, fin:v.fin, hrs:v.hrs||0, pax:v.pax||0, ll:v.ll||0, carga:v.carga||0, gls:v.gls||0, base:v.base_v||v.base||'', tipo:tipoNorm, _gsHrs:true });
       });
       dayObj.registros = Object.values(porHeli);
     }
@@ -2047,7 +2028,24 @@ function renderBitacora(){
         const vuelosWrap = document.createElement('div');
         vuelosWrap.style.cssText = 'border-top:1px solid var(--border);margin-top:4px;padding-top:8px;display:flex;flex-direction:column;gap:5px';
         r.vuelos.forEach((v, i) => {
-          const tipoLabel = {ll:'🪝 LL',interna:'📦 Int',pax:'👤 Pax',mixto:'👤📦 Mixto',ferri:'↗ Ferri'}[v.tipo||'pax'] || '—';
+          // Normalizar tipo antes del lookup (puede venir como clave corta o texto largo del GS)
+          let tipoKey = (v.tipo||'').toLowerCase();
+          if (tipoKey.includes('larga')||tipoKey.includes('externa')) tipoKey='ll';
+          else if (tipoKey.includes('interna')||tipoKey.includes('equipaje')) tipoKey='interna';
+          else if (tipoKey.includes('mixto')) tipoKey='mixto';
+          else if (tipoKey.includes('ferri')||tipoKey.includes('posicion')) tipoKey='ferri';
+          else if (tipoKey.includes('pasajero')||tipoKey==='pax') tipoKey='pax';
+          // Fallback: inferir por valores si tipo sigue sin resolverse
+          if (!['ll','interna','pax','mixto','ferri'].includes(tipoKey)) {
+            const ll=v.ll||0, ci=v.carga||0, p=v.pax||0;
+            if      (ll>0&&p===0) tipoKey='ll';
+            else if (ll>0&&p>0)   tipoKey='mixto';
+            else if (ci>0&&p>0)   tipoKey='mixto';
+            else if (ci>0)        tipoKey='interna';
+            else if (p>0)         tipoKey='pax';
+            else                  tipoKey='ferri';
+          }
+          const tipoLabel = {ll:'🪝 LL',interna:'📦 Int',pax:'👤 Pax',mixto:'👤📦 Mix',ferri:'↗ Ferri'}[tipoKey] || '—';
           const ruta = v.origen ? `${v.origen} → ${v.base||'?'}` : (v.base||'—');
           const row = document.createElement('div');
           row.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:11px;padding:4px 6px;border-radius:6px;background:var(--card2)';
