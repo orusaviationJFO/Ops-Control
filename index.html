@@ -2286,28 +2286,31 @@ function renderTotals(){
   if (ae) {
     const entries = Object.entries(byHeli).sort((a,b)=>b[1].hrs-a[1].hrs);
     ae.innerHTML = entries.map(([heli,s])=>{
-      const col = HCOL[heli]||'#718096';
-      const lim = FTL_LIMITS[heli]||{mes:75};
-      const pctFTL = Math.min(100, Math.round(s.hrs/lim.mes*100));
+      const col    = HCOL[heli]||'#718096';
+      const lim    = FTL_LIMITS[heli]||{mes:75};
+      const hrs    = s.hrs  || 0;
+      const fuel   = s.fuel || 0;
+      const dias   = s.dias instanceof Set ? s.dias.size : (s.dias || 0);
+      const pctFTL = Math.min(100, Math.round(hrs/lim.mes*100));
       const ftlCol = pctFTL>=100?'var(--red)':pctFTL>=85?'#ff7733':'#38a169';
       return `
       <div class="total-card">
         <div class="tc-header">
           <div class="tc-icon" style="background:${col}22;color:${col};font-size:18px">${heliPhoto(heli,38)}</div>
           <div style="flex:1">
-            <div class="tc-title">${heli} <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">${s.mat}</span></div>
-            <div class="tc-mat">${s.segs} vuelos · ${s.dias.size} días operados</div>
+            <div class="tc-title">${heli} <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">${s.mat||''}</span></div>
+            <div class="tc-mat">${s.segs} vuelos · ${dias} días operados</div>
           </div>
         </div>
         <div class="tc-grid" style="grid-template-columns:1fr 1fr 1fr 1fr">
-          <div class="tc-stat"><div class="tc-val" style="color:${col}">${fmtH(s.hrs)}</div><div class="tc-lbl">Horas</div></div>
-          <div class="tc-stat"><div class="tc-val" style="color:#38a169">${fmtKg(s.kg)}</div><div class="tc-lbl">Carga</div></div>
-          <div class="tc-stat"><div class="tc-val" style="color:var(--yellow)">${s.pax}</div><div class="tc-lbl">Pax</div></div>
-          <div class="tc-stat"><div class="tc-val" style="color:var(--purple)">${Math.round(s.fuel).toLocaleString('es-CO')}</div><div class="tc-lbl">GLS</div></div>
+          <div class="tc-stat"><div class="tc-val" style="color:${col}">${fmtH(hrs)}</div><div class="tc-lbl">Horas</div></div>
+          <div class="tc-stat"><div class="tc-val" style="color:#38a169">${fmtKg(s.kg||0)}</div><div class="tc-lbl">Carga</div></div>
+          <div class="tc-stat"><div class="tc-val" style="color:var(--yellow)">${s.pax||0}</div><div class="tc-lbl">Pax</div></div>
+          <div class="tc-stat"><div class="tc-val" style="color:var(--purple)">${Math.round(fuel).toLocaleString('es-CO')}</div><div class="tc-lbl">GLS</div></div>
         </div>
         <div style="margin-top:9px">
           <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px">
-            <span style="color:var(--muted)">FTL mes: ${fmtH(s.hrs)} / ${lim.mes}h</span>
+            <span style="color:var(--muted)">FTL mes: ${fmtH(hrs)} / ${lim.mes}h</span>
             <span style="color:${ftlCol};font-weight:600">${pctFTL}%</span>
           </div>
           <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
