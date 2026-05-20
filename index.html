@@ -3046,24 +3046,28 @@ function nivelActual(base) {
   return Math.max(0, FUEL_NIVEL[base] || 0);
 }
 
-// Consumo total acumulado del mes por base (de todos los vuelos registrados)
+// Consumo total acumulado del mes por base — siempre desde GS_DATA
 function consumoMesPorBase(base) {
   let total = 0;
-  Object.values(STORE).forEach(dayObj => {
-    dayObj.registros.forEach(r => {
-      if (r.base === base && r.gls > 0) total += r.gls;
+  if (GS_DATA && Array.isArray(GS_DATA.vuelos)) {
+    GS_DATA.vuelos.forEach(function(v) {
+      const vBase = v.base_v || v.base || '';
+      if (vBase === base && v.gls > 0) total += v.gls;
     });
-  });
+  }
   return total;
 }
 
-// Consumo del día seleccionado por base
+// Consumo del día actual por base — siempre desde GS_DATA
 function consumoHoyPorBase(base) {
-  const k = dkey(cur);
+  const hoy = dkey(new Date());
   let total = 0;
-  (STORE[k]?.registros || []).forEach(r => {
-    if (r.base === base && r.gls > 0) total += r.gls;
-  });
+  if (GS_DATA && Array.isArray(GS_DATA.vuelos)) {
+    GS_DATA.vuelos.forEach(function(v) {
+      const vBase = v.base_v || v.base || '';
+      if (v.fecha === hoy && vBase === base && v.gls > 0) total += v.gls;
+    });
+  }
   return total;
 }
 
@@ -4479,17 +4483,10 @@ function syncConGS() {
     renderDashboard();
     renderBitacora();
     renderTotals();
-    // Fetch niveles de tanques desde GS y actualizar FUEL_NIVEL
-    fetch(GS_URL + '?action=niveles&mes=' + mes, { mode: 'cors', redirect: 'follow' })
-      .then(function(r){ return r.json(); })
-      .then(function(niv) {
-        if (niv && niv.ok && niv.niveles) {
-          Object.keys(niv.niveles).forEach(function(b) {
-            if (FUEL_NIVEL[b] !== undefined) FUEL_NIVEL[b] = niv.niveles[b];
-          });
-          renderDashboard(); // re-render con tanques actualizados
-        }
-      }).catch(function(){});
+    // Fetch paralelo: niveles de tanques + pilotos desde GS
+    fetchNivelesGS(mes);
+    fetchPilotosGS();
+    fetchEntradasCombustibleGS(mes);
   })
   .catch(function() {
     var el = document.getElementById('gs-sync-badge');
@@ -4505,8 +4502,17 @@ function _gsCallback(data) {
   renderDashboard();
   renderBitacora();
   renderTotals();
-  // Fetch niveles de tanques desde GS y actualizar FUEL_NIVEL
   var mes = dkey(new Date()).slice(0,7);
+  fetchNivelesGS(mes);
+  fetchPilotosGS();
+  fetchEntradasCombustibleGS(mes);
+  // Limpiar el script tag
+  var old = document.getElementById('_gs_jsonp_script');
+  if (old) old.remove();
+}
+
+// ── Fetch niveles de tanques desde GS ────────────────────────────
+function fetchNivelesGS(mes) {
   fetch(GS_URL + '?action=niveles&mes=' + mes, { mode: 'cors', redirect: 'follow' })
     .then(function(r){ return r.json(); })
     .then(function(niv) {
@@ -4515,11 +4521,53 @@ function _gsCallback(data) {
           if (FUEL_NIVEL[b] !== undefined) FUEL_NIVEL[b] = niv.niveles[b];
         });
         renderDashboard();
+        renderFuelTanks();
       }
     }).catch(function(){});
-  // Limpiar el script tag
-  var old = document.getElementById('_gs_jsonp_script');
-  if (old) old.remove();
+}
+
+// ── Fetch pilotos desde GS (hoja Pilotos) ────────────────────────
+function fetchPilotosGS() {
+  fetch(GS_URL + '?action=pilotos', { mode: 'cors', redirect: 'follow' })
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      if (!data || !data.ok || !Array.isArray(data.pilotos)) return;
+      // Reconstruir PILOTOS desde GS
+      var todos = data.pilotos.map(function(p){ return p.nombre; }).filter(Boolean).sort();
+      // Actualizar todos los selectores de pilotos en el formulario
+      var fpil = document.getElementById('f-piloto');
+      if (fpil) {
+        fpil.innerHTML = '<option value="">— seleccionar piloto —</option>' +
+          todos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+      }
+      var fcop = document.getElementById('f-copiloto');
+      if (fcop) {
+        fcop.innerHTML = '<option value="N/A">N/A — Single pilot</option>' +
+          todos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+      }
+    }).catch(function(){});
+}
+
+// ── Fetch historial combustible desde GS (hoja Combustible) ──────
+function fetchEntradasCombustibleGS(mes) {
+  fetch(GS_URL + '?action=combustible_mes&mes=' + mes, { mode: 'cors', redirect: 'follow' })
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      if (!data || !data.ok || !Array.isArray(data.entradas)) return;
+      // Reemplazar FUEL_ENTRADAS con datos reales del GS
+      FUEL_ENTRADAS = data.entradas.map(function(e) {
+        return {
+          fecha: e.fecha || '',
+          hora:  e.hora  || '',
+          base:  e.base  || '',
+          gls:   e.gls   || 0,
+          ref:   e.ref   || '',
+          tipo:  e.gls >= 0 ? 'reabastecimiento' : 'drenaje'
+        };
+      });
+      // Re-renderizar la sección de combustible si está visible
+      renderFuelTanks();
+    }).catch(function(){});
 }
 
 function actualizarBadgeGS() {
