@@ -1951,7 +1951,20 @@ function renderBitacora(){
       // Agrupar por heli
       const porHeli = {};
       vGS.forEach(v => {
-        if (!porHeli[v.heli]) porHeli[v.heli] = { heli:v.heli, mat:v.mat||'', base:v.base||'', piloto:v.piloto||'', vuelos:[], estadoDia:'OPERÓ' };
+        if (!porHeli[v.heli]) porHeli[v.heli] = {
+          heli:      v.heli,
+          mat:       v.mat       || '',
+          base:      v.base      || '',
+          piloto:    v.piloto    || '',
+          dutyIn:    v.dutyIn    || '',
+          dutyOut:   v.dutyOut   || '',
+          gls:       0,
+          prog:      v.prog      || 0,
+          cumpl:     v.cumpl     || 0,
+          estadoDia: v.estadoDia || 'OPERÓ',
+          vuelos:    []
+        };
+        if (v.gls > 0) porHeli[v.heli].gls += v.gls;
         // Normalizar tipo: puede llegar como clave corta ('ll') o texto largo del mapTipo()
         var tipoRaw = v.tipo || '';
         var tipoNorm = tipoRaw;
