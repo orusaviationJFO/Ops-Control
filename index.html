@@ -4398,6 +4398,7 @@ function syncConGS() {
     actualizarBadgeGS();
     renderDashboard();
     renderBitacora();
+    renderTotals();
   })
   .catch(function() {
     var el = document.getElementById('gs-sync-badge');
@@ -4412,6 +4413,7 @@ function _gsCallback(data) {
   actualizarBadgeGS();
   renderDashboard();
   renderBitacora();
+  renderTotals();
   // Limpiar el script tag
   var old = document.getElementById('_gs_jsonp_script');
   if (old) old.remove();
