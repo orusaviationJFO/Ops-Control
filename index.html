@@ -2159,16 +2159,58 @@ function renderTotals(){
       var _diasTot = new Set();
       _gsTot.forEach(function(v){ if(v.fecha) _diasTot.add(v.fecha); });
       tot.dias = _diasTot.size;
-      // Reconstruir byHeli y byProy desde GS
+      // Reconstruir byHeli, byProy, byDay y tipoV desde GS
+      // Limpiar primero para evitar duplicados con el STORE local
+      Object.keys(byHeli).forEach(k => delete byHeli[k]);
+      Object.keys(byProy).forEach(k => delete byProy[k]);
+      Object.keys(byDay).forEach(k => delete byDay[k]);
+      Object.keys(tipoV).forEach(k => tipoV[k] = 0);
+
       _gsTot.forEach(function(v) {
         var hk = v.heli||'Sin equipo';
-        if(!byHeli[hk]) byHeli[hk]={hrs:0,segs:0,pax:0,kg:0,fuel:0,mat:v.mat||''};
-        byHeli[hk].hrs  += v.hrs||0; byHeli[hk].segs++;
-        byHeli[hk].pax  += v.pax||0; byHeli[hk].kg += (v.ll||0)+(v.carga||0);
         var pk = v.base_v||v.base||'Sin proyecto';
-        if(!byProy[pk]) byProy[pk]={hrs:0,segs:0,pax:0,kg:0};
-        byProy[pk].hrs += v.hrs||0; byProy[pk].segs++;
-        byProy[pk].pax += v.pax||0; byProy[pk].kg += (v.ll||0)+(v.carga||0);
+        var fk = v.fecha||'';
+        var h  = v.hrs||0, p = v.pax||0;
+        var ll = v.ll||0, ci = v.carga||0, kg = ll+ci;
+        var gl = v.gls||0;
+
+        // byHeli
+        if(!byHeli[hk]) byHeli[hk]={hrs:0,segs:0,pax:0,kg:0,fuel:0,mat:v.mat||'',dias:new Set()};
+        byHeli[hk].hrs+=h; byHeli[hk].segs++; byHeli[hk].pax+=p;
+        byHeli[hk].kg+=kg; byHeli[hk].fuel+=gl; byHeli[hk].dias.add(fk);
+
+        // byProy
+        if(!byProy[pk]) byProy[pk]={hrs:0,segs:0,pax:0,kg:0,fuel:0};
+        byProy[pk].hrs+=h; byProy[pk].segs++; byProy[pk].pax+=p;
+        byProy[pk].kg+=kg; byProy[pk].fuel+=gl;
+
+        // byDay
+        if(fk) {
+          if(!byDay[fk]) {
+            var lbl = new Date(fk+'T12:00:00').toLocaleDateString('es-CO',{weekday:'short',day:'2-digit',month:'short'});
+            byDay[fk]={label:lbl,hrs:0,segs:0,pax:0,kg:0,fuel:0,proj:new Set(),helis:new Set()};
+          }
+          byDay[fk].hrs+=h; byDay[fk].segs++; byDay[fk].pax+=p;
+          byDay[fk].kg+=kg; byDay[fk].fuel+=gl;
+          byDay[fk].proj.add(pk); byDay[fk].helis.add(hk);
+        }
+
+        // tipoV — normalizar tipo desde GS
+        var tipo = (v.tipo||'').toLowerCase();
+        if(tipo.includes('larga')||tipo.includes('externa')) tipoV.ll++;
+        else if(tipo.includes('interna')||tipo.includes('equipaje')) tipoV.interna++;
+        else if(tipo.includes('mixto')) tipoV.mixto++;
+        else if(tipo.includes('ferri')||tipo.includes('posicion')) tipoV.ferri++;
+        else if(tipo.includes('pasajero')||tipo==='pax') tipoV.pax_solo++;
+        else {
+          // fallback por valores
+          if(ll>0&&p===0) tipoV.ll++;
+          else if(ll>0&&p>0) tipoV.mixto++;
+          else if(ci>0&&p>0) tipoV.mixto++;
+          else if(ci>0) tipoV.interna++;
+          else if(p>0) tipoV.pax_solo++;
+          else tipoV.ferri++;
+        }
       });
     }
   }
@@ -4425,6 +4467,13 @@ function actualizarBadgeGS() {
     var t = new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
     el.textContent = '⬤ GS ' + t;
     el.style.color = 'var(--green)';
+  }
+  // También actualizar el badge principal del dashboard
+  var badge = document.getElementById('gs-badge');
+  if (badge) {
+    badge.style.background = '#ffffff';
+    badge.style.color = '#16a34a';
+    badge.textContent = '● Sheets ON';
   }
 }
 
