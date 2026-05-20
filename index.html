@@ -4479,6 +4479,17 @@ function syncConGS() {
     renderDashboard();
     renderBitacora();
     renderTotals();
+    // Fetch niveles de tanques desde GS y actualizar FUEL_NIVEL
+    fetch(GS_URL + '?action=niveles&mes=' + mes, { mode: 'cors', redirect: 'follow' })
+      .then(function(r){ return r.json(); })
+      .then(function(niv) {
+        if (niv && niv.ok && niv.niveles) {
+          Object.keys(niv.niveles).forEach(function(b) {
+            if (FUEL_NIVEL[b] !== undefined) FUEL_NIVEL[b] = niv.niveles[b];
+          });
+          renderDashboard(); // re-render con tanques actualizados
+        }
+      }).catch(function(){});
   })
   .catch(function() {
     var el = document.getElementById('gs-sync-badge');
@@ -4494,6 +4505,18 @@ function _gsCallback(data) {
   renderDashboard();
   renderBitacora();
   renderTotals();
+  // Fetch niveles de tanques desde GS y actualizar FUEL_NIVEL
+  var mes = dkey(new Date()).slice(0,7);
+  fetch(GS_URL + '?action=niveles&mes=' + mes, { mode: 'cors', redirect: 'follow' })
+    .then(function(r){ return r.json(); })
+    .then(function(niv) {
+      if (niv && niv.ok && niv.niveles) {
+        Object.keys(niv.niveles).forEach(function(b) {
+          if (FUEL_NIVEL[b] !== undefined) FUEL_NIVEL[b] = niv.niveles[b];
+        });
+        renderDashboard();
+      }
+    }).catch(function(){});
   // Limpiar el script tag
   var old = document.getElementById('_gs_jsonp_script');
   if (old) old.remove();
