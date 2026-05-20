@@ -1550,7 +1550,27 @@ function renderDashboard(){
       mes.porHeli = {};
       mes.porProy = {};
       mes.tipoVuelos = { pax_solo:0, pax_carga:0, carga_int:0, carga_ext:0, ferri:0 };
+      mes.estadosDia = { opero:0, parcial:0, noOpero:0, noRequerida:0 };
+      mes.causas = {};
       byDay = {};
+
+      // Agrupar por fecha+heli para estadosDia (una entrada por aeronave por día)
+      var _estadosPorDiaHeli = {};
+      _gsMes.forEach(function(v) {
+        var key = (v.fecha||'') + '|' + (v.heli||'');
+        if (!_estadosPorDiaHeli[key]) {
+          _estadosPorDiaHeli[key] = true;
+          var ed = (v.estadoDia || 'OPERÓ').toUpperCase().trim();
+          if      (ed === 'OPERÓ' || ed === 'OPERO') mes.estadosDia.opero++;
+          else if (ed === 'PARCIAL')                  mes.estadosDia.parcial++;
+          else if (ed === 'NO OPERÓ' || ed === 'NO OPERO') mes.estadosDia.noOpero++;
+          else if (ed === 'NO REQUERIDA')             mes.estadosDia.noRequerida++;
+          // Causas desde GS
+          var causasArr = Array.isArray(v.causas) ? v.causas :
+            (v.causas ? String(v.causas).split(',').map(function(c){return c.trim();}).filter(Boolean) : []);
+          causasArr.forEach(function(c){ if(c) mes.causas[c] = (mes.causas[c]||0) + 1; });
+        }
+      });
 
       _gsMes.forEach(function(v) {
         // Por helicóptero
@@ -1962,6 +1982,8 @@ function renderBitacora(){
           prog:      v.prog      || 0,
           cumpl:     v.cumpl     || 0,
           estadoDia: v.estadoDia || 'OPERÓ',
+          causas:    Array.isArray(v.causas) ? v.causas : (v.causas ? String(v.causas).split(',').map(function(c){return c.trim();}).filter(Boolean) : []),
+          obs:       v.obs       || '',
           vuelos:    []
         };
         if (v.gls > 0) porHeli[v.heli].gls += v.gls;
