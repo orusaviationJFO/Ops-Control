@@ -1167,7 +1167,7 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
       <div class="legend-dot" style="background:#e53e3e"></div>
       <div class="legend-text">
         <div class="legend-label">Bell 412 — HK-4767 / HK-4680</div>
-        <div class="legend-desc">Helicóptero pesado bimotora · Crew (piloto + copiloto) · Capacidad ~13 pax o ~1.800 kg cabina · Pilotos: Hodek, Bernal, Maldonado, Lara, Berbesi, Ibañez, Delgado · Copilotos: Salgado, Fierro, Fonseca, Rivera</div>
+        <div class="legend-desc">Helicóptero pesado bimotora · Crew (piloto + copiloto) · Capacidad ~13 pax o ~1.800 kg cabina · Pilotos: Hodek, Bernal, Maldonado, Lara, Berbesi, Ibañez, Delgado · Copilotos: Salgado, Fierro, Rivera</div>
       </div>
     </div>
     <div class="legend-item">
@@ -2634,7 +2634,7 @@ let vCount = 0;
 const PILOTOS = {
   'KOALA':      { pilotos: ['Cruz','Zuñiga','Murcia'],                                                                        copilotos: [],                    instructores: ['Lara','Barbesi','Cruz','Sandoval','Díaz'] },
   'BK117':      { pilotos: ['Lopez','Acosta'],                                                                                copilotos: [],                    instructores: ['Lara','Barbesi','Cruz','Sandoval','Díaz'] },
-  'BELL 412':   { pilotos: ['Hodek','Bernal','Maldonado','Lara','Berbesi','Ibañez','Delgado'],                               copilotos: ['Fierro','Fonseca','Rivera'],   instructores: ['Lara','Barbesi','Cruz','Sandoval','Díaz'] },
+  'BELL 412':   { pilotos: ['Hodek','Bernal','Maldonado','Lara','Berbesi','Ibañez','Delgado'],                               copilotos: ['Fierro','Rivera'],   instructores: ['Lara','Barbesi','Cruz','Sandoval','Díaz'] },
   'BELL 206L3': { pilotos: ['Cruz','Zuñiga','Murcia','Lopez','Acosta'],                                                       copilotos: [],                    instructores: ['Lara','Barbesi','Cruz','Sandoval','Díaz'] },
   'BELL 206L4': { pilotos: ['Cruz','Zuñiga','Murcia','Lopez','Acosta'],                                                       copilotos: [],                    instructores: ['Lara','Barbesi','Cruz','Sandoval','Díaz'] },
 };
@@ -4056,7 +4056,7 @@ function addVueloBloque(n) {
       </div>
       <div class="frow" style="margin-bottom:0">
         <label>Inicio</label>
-        <input type="time" class="v-ini">
+        <span class="v-ini-wrap" style="display:inline-block"></span>
       </div>
     </div>
     <div class="f2" style="margin-bottom:9px">
@@ -4079,7 +4079,7 @@ function addVueloBloque(n) {
       </div>
       <div class="frow" style="margin-bottom:0">
         <label>Fin</label>
-        <input type="time" class="v-fin">
+        <span class="v-fin-wrap" style="display:inline-block"></span>
       </div>
     </div>
     <div class="frow" style="margin-bottom:9px">
@@ -4106,6 +4106,11 @@ function addVueloBloque(n) {
     <div class="frow" style="margin-bottom:0"><label>Tanqueo en este vuelo (gls)</label><input type="number" class="v-gls" placeholder="0" min="0" onchange="validarGLSIndividual(this)"></div>
   `;
   el.appendChild(div);
+  // Inicializar selectores de hora 24h (igual que addVuelo principal)
+  var wIni = div.querySelector('.v-ini-wrap');
+  var wFin = div.querySelector('.v-fin-wrap');
+  if (wIni) wIni.innerHTML = crearSelectorHora('', 'v-ini', '', '');
+  if (wFin) wFin.innerHTML = crearSelectorHora('', 'v-fin', '', '');
   // Aplicar filtro de tipo al crear (igual que addVuelo principal)
   actualizarCamposVuelo(div.querySelector('.v-tipo'));
 }
