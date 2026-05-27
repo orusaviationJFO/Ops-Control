@@ -4556,7 +4556,15 @@ function fetchPilotosGS() {
     .then(function(data) {
       if (!data || !data.ok || !Array.isArray(data.pilotos)) return;
       // Reconstruir PILOTOS desde GS
-      var todos = data.pilotos.map(function(p){ return p.nombre; }).filter(Boolean).sort();
+      var todos = data.pilotos.map(function(p){ return p.nombre; })
+        .filter(function(n) {
+          if (!n) return false;
+          var nu = n.toUpperCase();
+          if (nu.includes('TOTAL'))    return false;
+          if (nu.includes('RESUMEN'))  return false;
+          if (nu.includes('PROMEDIO')) return false;
+          return true;
+        }).sort();
       // Actualizar todos los selectores de pilotos en el formulario
       var fpil = document.getElementById('f-piloto');
       if (fpil) {
