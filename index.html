@@ -4056,7 +4056,7 @@ function addVueloBloque(n) {
       </div>
       <div class="frow" style="margin-bottom:0">
         <label>Inicio</label>
-        <span class="v-ini-wrap" style="display:inline-block"></span>
+        <input type="time" class="v-ini">
       </div>
     </div>
     <div class="f2" style="margin-bottom:9px">
@@ -4079,7 +4079,7 @@ function addVueloBloque(n) {
       </div>
       <div class="frow" style="margin-bottom:0">
         <label>Fin</label>
-        <span class="v-fin-wrap" style="display:inline-block"></span>
+        <input type="time" class="v-fin">
       </div>
     </div>
     <div class="frow" style="margin-bottom:9px">
@@ -4106,11 +4106,6 @@ function addVueloBloque(n) {
     <div class="frow" style="margin-bottom:0"><label>Tanqueo en este vuelo (gls)</label><input type="number" class="v-gls" placeholder="0" min="0" onchange="validarGLSIndividual(this)"></div>
   `;
   el.appendChild(div);
-  // Inicializar selectores de hora 24h (igual que addVuelo principal)
-  var wIni = div.querySelector('.v-ini-wrap');
-  var wFin = div.querySelector('.v-fin-wrap');
-  if (wIni) wIni.innerHTML = crearSelectorHora('', 'v-ini', '', '');
-  if (wFin) wFin.innerHTML = crearSelectorHora('', 'v-fin', '', '');
   // Aplicar filtro de tipo al crear (igual que addVuelo principal)
   actualizarCamposVuelo(div.querySelector('.v-tipo'));
 }
@@ -4542,7 +4537,16 @@ function fetchPilotosGS() {
     .then(function(data) {
       if (!data || !data.ok || !Array.isArray(data.pilotos)) return;
       // Reconstruir PILOTOS desde GS
-      var todos = data.pilotos.map(function(p){ return p.nombre; }).filter(Boolean).sort();
+      var todos = data.pilotos.map(function(p){ return p.nombre; })
+        .filter(function(n){
+          if (!n) return false;
+          // Excluir filas de resumen/totales
+          var nu = n.toUpperCase();
+          if (nu.includes('TOTAL')) return false;
+          if (nu.includes('RESUMEN')) return false;
+          if (nu.includes('PROMEDIO')) return false;
+          return true;
+        }).sort();
       // Actualizar todos los selectores de pilotos en el formulario
       var fpil = document.getElementById('f-piloto');
       if (fpil) {
