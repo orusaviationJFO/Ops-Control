@@ -168,7 +168,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:va
 .empty-text{font-size:13px}
 
 /* TOAST */
-.toast-legacy-removed{display:none}
+.toast{position:fixed;bottom:82px;left:50%;transform:translateX(-50%);background:var(--green);color:#000;font-weight:600;font-size:14px;padding:9px 18px;border-radius:20px;opacity:0;transition:opacity .25s;z-index:300;white-space:nowrap;pointer-events:none}
 .toast.show{opacity:1}
 
 .mt8{margin-top:8px}
@@ -1167,7 +1167,7 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
       <div class="legend-dot" style="background:#e53e3e"></div>
       <div class="legend-text">
         <div class="legend-label">Bell 412 — HK-4767 / HK-4680</div>
-        <div class="legend-desc">Helicóptero pesado bimotora · Crew (piloto + copiloto) · Capacidad ~13 pax o ~1.800 kg cabina · Pilotos: Hodek, Bernal, Maldonado, Lara, Berbesi, Ibañez, Delgado · Copilotos: Salgado, Fierro, Rivera</div>
+        <div class="legend-desc">Helicóptero pesado bimotora · Crew (piloto + copiloto) · Capacidad ~13 pax o ~1.800 kg cabina · Pilotos: Hodek, Bernal, Maldonado, Lara, Berbesi, Ibañez, Delgado · Copilotos: Salgado, Fierro, Fonseca, Rivera</div>
       </div>
     </div>
     <div class="legend-item">
@@ -2634,7 +2634,7 @@ let vCount = 0;
 const PILOTOS = {
   'KOALA':      { pilotos: ['Cruz','Zuñiga','Murcia'],                                                                        copilotos: [],                    instructores: ['Lara','Barbesi','Cruz','Sandoval','Díaz'] },
   'BK117':      { pilotos: ['Lopez','Acosta'],                                                                                copilotos: [],                    instructores: ['Lara','Barbesi','Cruz','Sandoval','Díaz'] },
-  'BELL 412':   { pilotos: ['Hodek','Bernal','Maldonado','Lara','Berbesi','Ibañez','Delgado'],                               copilotos: ['Fierro','Rivera'],   instructores: ['Lara','Barbesi','Cruz','Sandoval','Díaz'] },
+  'BELL 412':   { pilotos: ['Hodek','Bernal','Maldonado','Lara','Berbesi','Ibañez','Delgado'],                               copilotos: ['Fierro','Fonseca','Rivera'],   instructores: ['Lara','Barbesi','Cruz','Sandoval','Díaz'] },
   'BELL 206L3': { pilotos: ['Cruz','Zuñiga','Murcia','Lopez','Acosta'],                                                       copilotos: [],                    instructores: ['Lara','Barbesi','Cruz','Sandoval','Díaz'] },
   'BELL 206L4': { pilotos: ['Cruz','Zuñiga','Murcia','Lopez','Acosta'],                                                       copilotos: [],                    instructores: ['Lara','Barbesi','Cruz','Sandoval','Díaz'] },
 };
@@ -4235,32 +4235,12 @@ function actualizarMatBloque(sel, matId) {
   }
 
   // Enviar a Sheets
-  try {
-    enviarASheets(construirPayloadVuelo(reg, keyStr));
-  } catch(e) {
-    console.warn('Error enviando bloque a Sheets:', e);
-  }
-
-  // Feedback visual — scroll hacia arriba para que el toast sea visible
-  window.scrollTo({top: 0, behavior: 'smooth'});
-  setTimeout(function() {
-    mostrarToast('✅ Helicóptero #'+n+' guardado correctamente', 'ok');
-  }, 400);
+  enviarASheets(construirPayloadVuelo(reg, keyStr));
+  mostrarToast('✅ Helicóptero #'+n+' guardado','ok');
 
   // Colapsar el bloque visualmente
-  const bloqueEl = document.getElementById('bloque-'+n);
-  if (bloqueEl) {
-    bloqueEl.style.opacity = '0.5';
-    bloqueEl.style.pointerEvents = 'none';
-    // Añadir badge de confirmación en el header del bloque
-    const hdr = bloqueEl.querySelector('.heli-bloque-hdr');
-    if (hdr) {
-      const badge = document.createElement('span');
-      badge.textContent = '✅ Guardado';
-      badge.style.cssText = 'background:#16a34a;color:#fff;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;margin-left:8px';
-      hdr.appendChild(badge);
-    }
-  }
+  document.getElementById('bloque-'+n).style.opacity = '0.5';
+  document.getElementById('bloque-'+n).style.pointerEvents = 'none';
 
   renderDashboard();
 }
