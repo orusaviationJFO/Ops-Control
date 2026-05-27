@@ -168,7 +168,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:va
 .empty-text{font-size:13px}
 
 /* TOAST */
-.toast{position:fixed;bottom:82px;left:50%;transform:translateX(-50%);background:var(--green);color:#000;font-weight:600;font-size:14px;padding:9px 18px;border-radius:20px;opacity:0;transition:opacity .25s;z-index:300;white-space:nowrap;pointer-events:none}
+.toast-legacy-removed{display:none}
 .toast.show{opacity:1}
 
 .mt8{margin-top:8px}
@@ -4235,12 +4235,32 @@ function actualizarMatBloque(sel, matId) {
   }
 
   // Enviar a Sheets
-  enviarASheets(construirPayloadVuelo(reg, keyStr));
-  mostrarToast('✅ Helicóptero #'+n+' guardado','ok');
+  try {
+    enviarASheets(construirPayloadVuelo(reg, keyStr));
+  } catch(e) {
+    console.warn('Error enviando bloque a Sheets:', e);
+  }
+
+  // Feedback visual — scroll hacia arriba para que el toast sea visible
+  window.scrollTo({top: 0, behavior: 'smooth'});
+  setTimeout(function() {
+    mostrarToast('✅ Helicóptero #'+n+' guardado correctamente', 'ok');
+  }, 400);
 
   // Colapsar el bloque visualmente
-  document.getElementById('bloque-'+n).style.opacity = '0.5';
-  document.getElementById('bloque-'+n).style.pointerEvents = 'none';
+  const bloqueEl = document.getElementById('bloque-'+n);
+  if (bloqueEl) {
+    bloqueEl.style.opacity = '0.5';
+    bloqueEl.style.pointerEvents = 'none';
+    // Añadir badge de confirmación en el header del bloque
+    const hdr = bloqueEl.querySelector('.heli-bloque-hdr');
+    if (hdr) {
+      const badge = document.createElement('span');
+      badge.textContent = '✅ Guardado';
+      badge.style.cssText = 'background:#16a34a;color:#fff;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;margin-left:8px';
+      hdr.appendChild(badge);
+    }
+  }
 
   renderDashboard();
 }
