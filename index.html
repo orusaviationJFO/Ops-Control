@@ -701,10 +701,10 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
     </div>
     <div id="nuevo-piloto-msg" style="font-size:11px;min-height:16px;margin-top:-8px;margin-bottom:8px"></div>
     <div class="f2">
-      <div class="frow" style="margin-bottom:0"><label>Duty IN</label><input type="time" id="f-din" value="07:00"></div>
+      <div class="frow" style="margin-bottom:0"><label>Duty IN</label><span id="f-din-wrap" style="display:inline-block"></span></div>
       <div class="frow" style="margin-bottom:0">
           <label>Duty OUT</label>
-          <input type="time" id="f-dout" value="16:00">
+          <span id="f-dout-wrap" style="display:inline-block"></span>
           <span style="font-size:11px;color:#d69e2e;display:block;margin-top:3px">⏱ Completar al finalizar el día</span>
         </div>
     </div>
@@ -2899,8 +2899,8 @@ function guardarRegistro() {
     base:    document.getElementById('f-base').value,
     piloto:  document.getElementById('f-piloto').value,
     copiloto: document.getElementById('f-copiloto')?.value || '',
-    dutyIn:  document.getElementById('f-din').value,
-    dutyOut: document.getElementById('f-dout').value,
+    dutyIn:  getTimeValue('f-din'),
+    dutyOut: getTimeValue('f-dout'),
     vuelos,
     gls:   parseFloat(document.getElementById('f-gls').value)||0,
     prog:  parseInt(document.getElementById('f-prog').value)||0,
@@ -3465,6 +3465,14 @@ iniciarSyncGS();
 renderNivelInicial();
 inicializarSOA();
 
+// Inicializar selectores Duty IN/OUT 24h del bloque principal
+(function() {
+  var wDin  = document.getElementById('f-din-wrap');
+  var wDout = document.getElementById('f-dout-wrap');
+  if (wDin)  wDin.innerHTML  = crearSelectorHora('f-din',  '', '07:00', '');
+  if (wDout) wDout.innerHTML = crearSelectorHora('f-dout', '', '16:00', '');
+})();
+
 
 // ── Badge Sheets: ping con no-cors (funciona desde file://) ──
 (function() {
@@ -3935,11 +3943,11 @@ function agregarBloqueHeli() {
         </div>
         <div class="f2">
           <div class="frow" style="margin-bottom:0"><label>Duty IN</label>
-            <input type="time" id="b${n}-din" value="07:00">
+            <span id="b${n}-din-wrap" style="display:inline-block"></span>
           </div>
           <div class="frow" style="margin-bottom:0">
             <label>Duty OUT</label>
-            <input type="time" id="b${n}-dout" value="16:00">
+            <span id="b${n}-dout-wrap" style="display:inline-block"></span>
             <span style="font-size:11px;color:#d69e2e;display:block;margin-top:3px">⏱ Completar al finalizar el día</span>
           </div>
         </div>
@@ -3999,6 +4007,12 @@ function agregarBloqueHeli() {
     </div>
   `;
   container.appendChild(div);
+
+  // Inicializar selectores Duty IN/OUT 24h del bloque extra
+  var wDin  = document.getElementById('b'+n+'-din-wrap');
+  var wDout = document.getElementById('b'+n+'-dout-wrap');
+  if (wDin)  wDin.innerHTML  = crearSelectorHora('b'+n+'-din',  '', '07:00', '');
+  if (wDout) wDout.innerHTML = crearSelectorHora('b'+n+'-dout', '', '16:00', '');
 
   // Poblar todos los pilotos disponibles
   var todosPilotos = [];
@@ -4156,8 +4170,8 @@ function actualizarMatBloque(sel, matId) {
   const piloto    = document.getElementById('b'+n+'-piloto').value.trim();
   const copiloto  = (document.getElementById('b'+n+'-copiloto') || {value:'N/A'}).value;
   const instructor= (document.getElementById('b'+n+'-instructor') || {value:'N/A'}).value;
-  const dutyIn    = document.getElementById('b'+n+'-din').value;
-  const dutyOut   = document.getElementById('b'+n+'-dout').value;
+  const dutyIn    = getTimeValue('b'+n+'-din');
+  const dutyOut   = getTimeValue('b'+n+'-dout');
   const progB     = parseInt((document.getElementById('b'+n+'-prog') || {value:0}).value)||0;
   const cumplB    = parseInt((document.getElementById('b'+n+'-cumpl') || {value:0}).value)||0;
   const estadoDiaB= (document.getElementById('b'+n+'-estado') || {value:'OPERÓ'}).value;
@@ -4746,25 +4760,28 @@ function crearSelectorHora(id, claseExtra, valorDefault, onChange) {
 
 function normalizarHora(v) {
   if (!v) return '';
-  // Si ya es HH:MM válido → devolver limpio
-  var m = String(v).match(/^(\d{1,2}):(\d{2})/);
-  if (m) {
-    var h = parseInt(m[1]), min = parseInt(m[2]);
-    if (h >= 0 && h <= 23 && min >= 0 && min <= 59)
-      return (h < 10 ? '0' : '') + h + ':' + (min < 10 ? '0' : '') + min;
+  var s = String(v).trim();
+  // Manejar AM/PM explícitamente (ej: "9:03 AM", "9:03 PM", "09:03 pm")
+  var ampm = s.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (ampm) {
+    var h = parseInt(ampm[1]), m = parseInt(ampm[2]), period = ampm[3].toUpperCase();
+    if (period === 'AM') { if (h === 12) h = 0; }
+    else                 { if (h !== 12) h += 12; }
+    return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
   }
-  // Si es Date con offset de timezone
+  // Si ya es HH:MM válido (24h) → devolver limpio
+  var m24 = s.match(/^(\d{1,2}):(\d{2})/);
+  if (m24) {
+    var h2 = parseInt(m24[1]), m2 = parseInt(m24[2]);
+    if (h2 >= 0 && h2 <= 23 && m2 >= 0 && m2 <= 59)
+      return (h2 < 10 ? '0' : '') + h2 + ':' + (m2 < 10 ? '0' : '') + m2;
+  }
+  // Si es Date con offset de timezone de Apps Script
   if (v instanceof Date) {
     var hh = v.getUTCHours(), mm = v.getUTCMinutes();
     return (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm;
   }
-  // Intentar extraer HH:MM de cualquier string
-  var match2 = String(v).match(/(\d{1,2}):(\d{2})/);
-  if (match2) {
-    var h2 = parseInt(match2[1]), m2 = parseInt(match2[2]);
-    if (h2 >= 0 && h2 <= 23) return (h2 < 10 ? '0' : '') + h2 + ':' + (m2 < 10 ? '0' : '') + m2;
-  }
-  return String(v).slice(0, 5);
+  return s.slice(0, 5);
 }
 
 function getTimeValue(id) {
