@@ -2041,7 +2041,7 @@ function renderBitacora(){
             <div style="font-weight:700;font-size:13px">${r.heli||'—'} <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">${r.mat||''}</span></div>
             <div style="font-size:11px;color:var(--muted);margin-top:2px">
               📍 ${r.base||'—'} · ${r.proyecto?'<span style="color:var(--accent)">'+r.proyecto+'</span> · ':''} ${r.piloto||'—'}
-              ${r.dutyIn ? ' · Duty '+r.dutyIn+'–'+(r.dutyOut||'?') : ''}
+              ${r.dutyIn ? ' · Duty '+normalizarHora(r.dutyIn)+'–'+normalizarHora(r.dutyOut||'') : ''}
             </div>
             </div>
           </div>
@@ -4056,7 +4056,7 @@ function addVueloBloque(n) {
       </div>
       <div class="frow" style="margin-bottom:0">
         <label>Inicio</label>
-        <input type="time" class="v-ini">
+        <span class="v-ini-wrap" style="display:inline-block"></span>
       </div>
     </div>
     <div class="f2" style="margin-bottom:9px">
@@ -4079,7 +4079,7 @@ function addVueloBloque(n) {
       </div>
       <div class="frow" style="margin-bottom:0">
         <label>Fin</label>
-        <input type="time" class="v-fin">
+        <span class="v-fin-wrap" style="display:inline-block"></span>
       </div>
     </div>
     <div class="frow" style="margin-bottom:9px">
@@ -4106,6 +4106,11 @@ function addVueloBloque(n) {
     <div class="frow" style="margin-bottom:0"><label>Tanqueo en este vuelo (gls)</label><input type="number" class="v-gls" placeholder="0" min="0" onchange="validarGLSIndividual(this)"></div>
   `;
   el.appendChild(div);
+  // Inicializar selectores hora 24h — igual que addVuelo principal
+  var wIni = div.querySelector('.v-ini-wrap');
+  var wFin = div.querySelector('.v-fin-wrap');
+  if (wIni) wIni.innerHTML = crearSelectorHora('', 'v-ini', '', '');
+  if (wFin) wFin.innerHTML = crearSelectorHora('', 'v-fin', '', '');
   // Aplicar filtro de tipo al crear (igual que addVuelo principal)
   actualizarCamposVuelo(div.querySelector('.v-tipo'));
 }
@@ -4537,16 +4542,7 @@ function fetchPilotosGS() {
     .then(function(data) {
       if (!data || !data.ok || !Array.isArray(data.pilotos)) return;
       // Reconstruir PILOTOS desde GS
-      var todos = data.pilotos.map(function(p){ return p.nombre; })
-        .filter(function(n){
-          if (!n) return false;
-          // Excluir filas de resumen/totales
-          var nu = n.toUpperCase();
-          if (nu.includes('TOTAL')) return false;
-          if (nu.includes('RESUMEN')) return false;
-          if (nu.includes('PROMEDIO')) return false;
-          return true;
-        }).sort();
+      var todos = data.pilotos.map(function(p){ return p.nombre; }).filter(Boolean).sort();
       // Actualizar todos los selectores de pilotos en el formulario
       var fpil = document.getElementById('f-piloto');
       if (fpil) {
@@ -4746,6 +4742,29 @@ function crearSelectorHora(id, claseExtra, valorDefault, onChange) {
     '<select '+(id?'id="'+id+'-m"':'')+' '+(claseExtra?'class="'+claseExtra+'-m"':'')+' '+onchg+
     ' style="width:52px;padding:6px 4px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:14px;font-family:var(--mono)">'+mins+'</select>' +
     '</span>';
+}
+
+function normalizarHora(v) {
+  if (!v) return '';
+  // Si ya es HH:MM válido → devolver limpio
+  var m = String(v).match(/^(\d{1,2}):(\d{2})/);
+  if (m) {
+    var h = parseInt(m[1]), min = parseInt(m[2]);
+    if (h >= 0 && h <= 23 && min >= 0 && min <= 59)
+      return (h < 10 ? '0' : '') + h + ':' + (min < 10 ? '0' : '') + min;
+  }
+  // Si es Date con offset de timezone
+  if (v instanceof Date) {
+    var hh = v.getUTCHours(), mm = v.getUTCMinutes();
+    return (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm;
+  }
+  // Intentar extraer HH:MM de cualquier string
+  var match2 = String(v).match(/(\d{1,2}):(\d{2})/);
+  if (match2) {
+    var h2 = parseInt(match2[1]), m2 = parseInt(match2[2]);
+    if (h2 >= 0 && h2 <= 23) return (h2 < 10 ? '0' : '') + h2 + ':' + (m2 < 10 ? '0' : '') + m2;
+  }
+  return String(v).slice(0, 5);
 }
 
 function getTimeValue(id) {
