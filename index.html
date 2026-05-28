@@ -3296,7 +3296,7 @@ function renderNivelInicial() {
 
   Object.entries(CAPS).forEach(function(entry) {
     var base = entry[0], cap = entry[1];
-    var actual = FUEL_NIVEL[base] || 0;
+    var actual = Math.round(FUEL_NIVEL[base] || 0);
     var pct = Math.round(actual / cap * 100);
     var color = pct > 50 ? '#38a169' : pct > 20 ? '#d69e2e' : '#e53e3e';
     var id = 'nivel-ini-' + base.replace(/ /g, '_');
@@ -3324,7 +3324,7 @@ function guardarNivelInicial() {
     const id  = 'nivel-ini-' + base.replace(/ /g, '_');
     const inp = document.getElementById(id);
     if (!inp || inp.value === '') return;
-    const val = parseFloat(inp.value);
+    const val = Math.round(parseFloat(inp.value));
     if (!isNaN(val) && val >= 0) {
       FUEL_NIVEL[base] = Math.min(val, CAPS[base]);
       niveles[base] = FUEL_NIVEL[base];
