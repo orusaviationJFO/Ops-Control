@@ -4540,8 +4540,19 @@ function fetchNivelesGS(mes) {
     .then(function(r){ return r.json(); })
     .then(function(niv) {
       if (niv && niv.ok && niv.niveles) {
+        // Verificar si el localStorage tiene niveles guardados hoy (más recientes que el GS)
+        var tsLocal = localStorage.getItem('fuel_nivel_timestamp') || '';
+        var hoy = dkey(new Date());
+        var localEsHoy = tsLocal.includes(
+          new Date().toLocaleDateString('es-CO')
+        );
         Object.keys(niv.niveles).forEach(function(b) {
-          if (FUEL_NIVEL[b] !== undefined) FUEL_NIVEL[b] = niv.niveles[b];
+          if (FUEL_NIVEL[b] === undefined) return;
+          // Si el localStorage tiene un valor guardado hoy, respetarlo
+          // (el SOA acaba de ingresarlo manualmente y aún no está en el GS)
+          if (localEsHoy) return;
+          // De lo contrario usar el valor del GS (ya parte del último nivel manual)
+          FUEL_NIVEL[b] = niv.niveles[b];
         });
         renderDashboard();
         renderFuelTanks();
