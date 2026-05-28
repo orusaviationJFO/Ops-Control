@@ -4497,11 +4497,19 @@ function syncConGS() {
     if (!data || !Array.isArray(data.vuelos)) return;
     GS_DATA = data;
     actualizarBadgeGS();
+    // Aplicar niveles si vienen en la respuesta (v5.9 — evita segundo fetch en mobile)
+    if (data.niveles && data.niveles.ok && data.niveles.niveles) {
+      Object.keys(data.niveles.niveles).forEach(function(b) {
+        if (FUEL_NIVEL[b] !== undefined) FUEL_NIVEL[b] = data.niveles.niveles[b];
+      });
+      localStorage.setItem('fuel_nivel_inicial', JSON.stringify(FUEL_NIVEL));
+    }
     renderDashboard();
     renderBitacora();
     renderTotals();
-    // Fetch paralelo: niveles de tanques + pilotos desde GS
-    fetchNivelesGS(mes);
+    renderFuelTanks();
+    renderNivelInicial();
+    // Fetch paralelo: pilotos y combustible (niveles ya llegaron arriba)
     fetchPilotosGS();
     fetchEntradasCombustibleGS(mes);
   })
@@ -4516,14 +4524,21 @@ function _gsCallback(data) {
   if (!data || !Array.isArray(data.vuelos)) return;
   GS_DATA = data;
   actualizarBadgeGS();
+  // Aplicar niveles si vienen en la respuesta
+  if (data.niveles && data.niveles.ok && data.niveles.niveles) {
+    Object.keys(data.niveles.niveles).forEach(function(b) {
+      if (FUEL_NIVEL[b] !== undefined) FUEL_NIVEL[b] = data.niveles.niveles[b];
+    });
+    localStorage.setItem('fuel_nivel_inicial', JSON.stringify(FUEL_NIVEL));
+  }
   renderDashboard();
   renderBitacora();
   renderTotals();
+  renderFuelTanks();
+  renderNivelInicial();
   var mes = dkey(new Date()).slice(0,7);
-  fetchNivelesGS(mes);
   fetchPilotosGS();
   fetchEntradasCombustibleGS(mes);
-  // Limpiar el script tag
   var old = document.getElementById('_gs_jsonp_script');
   if (old) old.remove();
 }
