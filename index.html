@@ -3447,13 +3447,8 @@ setInterval(()=>{
 },1000);
 
 // ── Init ──
-// Cargar niveles de combustible guardados
-try {
-  const fuelSaved = JSON.parse(localStorage.getItem('fuel_nivel_inicial') || '{}');
-  Object.entries(fuelSaved).forEach(([base, val]) => {
-    if (FUEL_NIVEL[base] !== undefined) FUEL_NIVEL[base] = val;
-  });
-} catch(e) {}
+// Niveles de combustible: fuente de verdad = GS (fetchNivelesGS al sincronizar)
+// No se carga localStorage aquí para evitar valores desactualizados en otros dispositivos
 
 updateDate();
 refreshAll();
