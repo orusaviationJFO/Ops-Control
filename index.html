@@ -1199,7 +1199,7 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
       <div style="background:var(--surface);border-radius:8px;padding:10px">
         <div style="font-size:10px;color:var(--muted);font-family:var(--mono);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Tanques — capacidades</div>
-        <div style="font-size:11px;line-height:2;font-family:var(--mono)">Mutatá: 12.000 gls<br>Frontino: 3.000 gls<br>Pantanos: 500 gls<br>La Rica: 500 gls</div>
+        <div style="font-size:11px;line-height:2;font-family:var(--mono)">Mutatá: 8.400 gls<br>Frontino: 3.000 gls<br>Pantanos: 500 gls<br>La Rica: 500 gls</div>
       </div>
       <div style="background:var(--surface);border-radius:8px;padding:10px">
         <div style="font-size:10px;color:var(--muted);font-family:var(--mono);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Alertas de nivel</div>
@@ -1809,7 +1809,7 @@ function renderDashboard(){
 
   // ─ ⑧ Combustible — tanques + consumo mes ─
   const fuelEl = document.getElementById('dash-combustible');
-  const CAPS_D = {'Mutatá':12000,'Frontino':3000,'Pantanos':500,'La Rica':500};
+  const CAPS_D = {'Mutatá':8400,'Frontino':3000,'Pantanos':500,'La Rica':500};
   fuelEl.innerHTML = Object.entries(CAPS_D).map(([base, cap])=>{
     const nivel = Math.max(0, typeof FUEL_NIVEL !== 'undefined' ? (FUEL_NIVEL[base]||0) : 0);
     const consumoMes = consumoMesPorBase(base);
@@ -3020,7 +3020,7 @@ function guardarRegistro() {
 // Frontino: tanque 1 = 5200, tanque 2 = 3000
 // La Rica: 500, Pantanos: 500
 const CAPS = {
-  'Mutatá':   12000,
+  'Mutatá':    8400,
   'Frontino':  3000,
   'Pantanos':   500,
   'La Rica':    500,
@@ -4358,7 +4358,7 @@ function abrirCierreMes() {
     </div>`;
 
   // Combustible en tanques
-  const CAPS_D = {'Mutatá':12000,'Frontino':3000,'Pantanos':500,'La Rica':500};
+  const CAPS_D = {'Mutatá':8400,'Frontino':3000,'Pantanos':500,'La Rica':500};
   document.getElementById('cierre-combustible').innerHTML =
     Object.entries(CAPS_D).map(([base, cap]) => {
       const nivel = Math.max(0, FUEL_NIVEL[base] || 0);
@@ -4441,7 +4441,7 @@ function confirmarCierreMes() {
     nuevoNombre.charAt(0).toUpperCase() + nuevoNombre.slice(1);
   document.getElementById('nuevo-mes-fuel').innerHTML =
     Object.entries(fuelTraspaso).map(([base, nivel]) => {
-      const cap = {'Mutatá':12000,'Frontino':3000,'Pantanos':500,'La Rica':500,'La Quiebra':2000}[base] || 9999;
+      const cap = {'Mutatá':8400,'Frontino':3000,'Pantanos':500,'La Rica':500,'La Quiebra':2000}[base] || 9999;
       const pct = Math.round(nivel / cap * 100);
       return `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px">
         <span style="font-weight:600">⛽ ${base}</span>
