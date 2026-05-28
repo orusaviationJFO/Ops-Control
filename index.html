@@ -3344,16 +3344,15 @@ function guardarNivelInicial() {
   localStorage.setItem('fuel_nivel_timestamp', ts);
   localStorage.setItem('fuel_nivel_inicial', JSON.stringify(FUEL_NIVEL));
 
-  // Enviar al GS — igual que vuelos, usar no-cors con JSON
+  // Enviar al GS — mandar TODOS los niveles actuales, no solo los modificados
   if (GS_URL && !GS_URL.includes('PEGAR_URL')) {
     const payload = {
       tipo: 'nivel_combustible',
       fecha: dkey(ahora),
       hora: ts,
-      niveles: niveles,
+      niveles: Object.assign({}, FUEL_NIVEL),  // todos los niveles actuales
       registradoPor: getNombreSOA()
     };
-    // Usar el mismo método que los vuelos
     enviarASheets(payload);
   }
 
