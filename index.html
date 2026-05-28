@@ -1914,24 +1914,27 @@ function renderDashboard(){
 }
 function renderBitacora(){
   const el = document.getElementById('bitacora-list');
-  const mesActual = dkey(cur).slice(0,7);  // usar fecha local, no UTC
+  const mesActual = dkey(cur).slice(0,7);
 
-  // Combinar STORE local con GS_DATA (datos de todos los SOAs)
+  // Construir mapa de días — GS es siempre la fuente prioritaria
   const storeMap = {};
+
+  // Primero cargar STORE local (días sin datos en GS)
   Object.entries(STORE)
     .filter(([fecha, dayObj]) => dayObj.registros?.length)
-    .forEach(([fecha, dayObj]) => { storeMap[fecha] = dayObj; });
+    .forEach(([fecha, dayObj]) => {
+      storeMap[fecha] = { ...dayObj, _fromGS: false, _localOnly: true };
+    });
 
-  // Agregar días del GS que no están en STORE local
+  // Luego GS sobreescribe cualquier día que tenga datos — GS es fuente de verdad
   if (GS_DATA && Array.isArray(GS_DATA.vuelos)) {
     GS_DATA.vuelos.forEach(v => {
       if (!v.fecha || !v.fecha.startsWith(mesActual)) return;
       if (!storeMap[v.fecha]) {
-        // Crear entrada sintética para días del GS no en local
-        storeMap[v.fecha] = {
-          registros: [],
-          _fromGS: true
-        };
+        storeMap[v.fecha] = { registros: [], _fromGS: true, _localOnly: false };
+      } else {
+        // GS tiene datos para este día — marcar como fromGS y limpiar datos locales
+        storeMap[v.fecha] = { registros: [], _fromGS: true, _localOnly: false };
       }
     });
   }
@@ -2005,7 +2008,7 @@ function renderBitacora(){
           else if (p > 0)              tipoNorm = 'pax';
           else                         tipoNorm = 'ferri';
         }
-        porHeli[v.heli].vuelos.push({ ini:v.ini, fin:v.fin, hrs:v.hrs||0, pax:v.pax||0, ll:v.ll||0, carga:v.carga||0, gls:v.gls||0, base:v.base_v||v.base||'', tipo:tipoNorm, _gsHrs:true });
+        porHeli[v.heli].vuelos.push({ ini:v.ini, fin:v.fin, hrs:v.hrs||0, pax:v.pax||0, ll:v.ll||0, carga:v.carga||0, gls:v.gls||0, origen:v.base||'', destino:v.base_v||v.base||'', tipo:tipoNorm, _gsHrs:true });
       });
       dayObj.registros = Object.values(porHeli);
     }
@@ -2082,7 +2085,11 @@ function renderBitacora(){
             else                  tipoKey='ferri';
           }
           const tipoLabel = {ll:'🪝 LL',interna:'📦 Int',pax:'👤 Pax',mixto:'👤📦 Mix',ferri:'↗ Ferri'}[tipoKey] || '—';
-          const ruta = v.origen ? `${v.origen} → ${v.base||'?'}` : (v.base||'—');
+          const origen  = v.origen  || v.base || '';
+          const destino = v.destino || v.base || '';
+          const ruta = origen && destino && origen !== destino
+            ? `${origen} → ${destino}`
+            : (origen || destino || '—');
           const row = document.createElement('div');
           row.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:11px;padding:4px 6px;border-radius:6px;background:var(--card2)';
           row.innerHTML = `
