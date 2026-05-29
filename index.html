@@ -2005,7 +2005,7 @@ function renderBitacora(){
           else if (p > 0)              tipoNorm = 'pax';
           else                         tipoNorm = 'ferri';
         }
-        porHeli[v.heli].vuelos.push({ ini:v.ini, fin:v.fin, hrs:v.hrs||0, pax:v.pax||0, ll:v.ll||0, carga:v.carga||0, gls:v.gls||0, base:v.base_v||v.base||'', tipo:tipoNorm, _gsHrs:true });
+        porHeli[v.heli].vuelos.push({ ini:v.ini, fin:v.fin, hrs:v.hrs||0, pax:v.pax||0, ll:v.ll||0, carga:v.carga||0, gls:v.gls||0, origen:v.base||'', destino:v.base_v||v.base||'', tipo:tipoNorm, _gsHrs:true });
       });
       dayObj.registros = Object.values(porHeli);
     }
@@ -2082,7 +2082,11 @@ function renderBitacora(){
             else                  tipoKey='ferri';
           }
           const tipoLabel = {ll:'🪝 LL',interna:'📦 Int',pax:'👤 Pax',mixto:'👤📦 Mix',ferri:'↗ Ferri'}[tipoKey] || '—';
-          const ruta = v.origen ? `${v.origen} → ${v.base||'?'}` : (v.base||'—');
+          const origen  = v.origen  || v.base || '';
+          const destino = v.destino || v.base || '';
+          const ruta = origen && destino && origen !== destino
+            ? `${origen} → ${destino}`
+            : (origen || destino || '—');
           const row = document.createElement('div');
           row.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:11px;padding:4px 6px;border-radius:6px;background:var(--card2)';
           row.innerHTML = `
