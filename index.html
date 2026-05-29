@@ -3234,7 +3234,7 @@ function renderFuelLog() {
     return;
   }
   el.innerHTML = '';
-  FUEL_ENTRADAS.slice(0, 30).forEach(m => {
+  FUEL_ENTRADAS.forEach(m => {
     const esConsumo = m.tipo === 'consumo' || (m.gls && m.gls < 0);
     const gls = Math.abs(m.gls || 0);
     const div = document.createElement('div');
