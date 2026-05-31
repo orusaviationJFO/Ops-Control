@@ -3214,6 +3214,18 @@ function registrarCombustible() {
   };
   enviarASheets(payloadReab);
 
+  // También registrar el nivel actualizado en NivelCombustible
+  // para que el Apps Script lo use como punto de partida correcto
+  const ahora2 = new Date();
+  const payloadNivel = {
+    tipo:          'nivel_combustible',
+    fecha:         fecha,
+    hora:          hora,
+    niveles:       Object.assign({}, FUEL_NIVEL),  // todos los tanques actuales
+    registradoPor: getNombreSOA()
+  };
+  enviarASheets(payloadNivel);
+
   // Limpiar campos
   document.getElementById('fc-gls').value     = '';
   document.getElementById('fc-drenaje').value = '';
@@ -3349,16 +3361,15 @@ function guardarNivelInicial() {
   localStorage.setItem('fuel_nivel_timestamp', ts);
   localStorage.setItem('fuel_nivel_inicial', JSON.stringify(FUEL_NIVEL));
 
-  // Enviar al GS — igual que vuelos, usar no-cors con JSON
+  // Enviar al GS — mandar TODOS los niveles actuales para que el GS tenga el registro completo
   if (GS_URL && !GS_URL.includes('PEGAR_URL')) {
     const payload = {
       tipo: 'nivel_combustible',
       fecha: dkey(ahora),
       hora: ts,
-      niveles: niveles,
+      niveles: Object.assign({}, FUEL_NIVEL),  // todos los niveles, no solo los modificados
       registradoPor: getNombreSOA()
     };
-    // Usar el mismo método que los vuelos
     enviarASheets(payload);
   }
 
