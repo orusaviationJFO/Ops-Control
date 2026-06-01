@@ -1,4 +1,4 @@
-      <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -3031,13 +3031,13 @@ const CAPS = {
   'La Rica':    500,
 };
 
-// Nivel actual de cada base (GLS) — último dato conocido del Excel
-// El supervisor ajusta esto cuando recibe combustible
+// Nivel actual de cada base (GLS) — siempre sobreescrito por GS al sincronizar
+// Estos valores son solo el estado inicial antes del primer sync
 let FUEL_NIVEL = {
-  'Mutatá':   7720.0,
-  'Frontino': 5480.0,
-  'Pantanos':  500.0,
-  'La Rica':   500.0,
+  'Mutatá':   0,
+  'Frontino': 0,
+  'Pantanos': 0,
+  'La Rica':  0,
 };
 
 // Historial de reabastecimientos (solo entradas manuales)
@@ -4408,6 +4408,8 @@ function abrirCierreMes() {
       </div>`;
     }).join('');
 
+  // Guardar el mes en el botón de confirmar — no recalcularlo al confirmar
+  document.getElementById('btn-confirmar-cierre').setAttribute('data-mes', mes);
   document.getElementById('modal-cierre').style.display = 'block';
 }
 
@@ -4416,7 +4418,9 @@ function cerrarModalCierre() {
 }
 
 function confirmarCierreMes() {
-  const mes = mesEnCurso();
+  // Usar el mes guardado al abrir el modal — evita que mesEnCurso() devuelva el mes nuevo
+  const btnConfirmar = document.getElementById('btn-confirmar-cierre');
+  const mes = (btnConfirmar && btnConfirmar.getAttribute('data-mes')) || mesEnCurso();
   const nombre = nombreMesLargo(mes);
 
   // 1. Descargar respaldo del mes que cierra
@@ -4436,6 +4440,24 @@ function confirmarCierreMes() {
     if (k.startsWith(mes)) payload.datos[k] = v;
   });
 
+  // Advertir si el respaldo sale vacío — datos pueden estar solo en GS
+  const totalRegistros = Object.values(payload.datos).reduce((n, d) => n + (d.registros?.length || 0), 0);
+  if (totalRegistros === 0) {
+    const continuar = confirm(
+      `⚠️ Advertencia: el respaldo de ${nombre} no tiene registros en este dispositivo.\n\n` +
+      `Los datos de vuelo están en Google Sheets pero no en este navegador.\n\n` +
+      `El JSON que se descargará estará vacío. ¿Continuar de todas formas?`
+    );
+    if (!continuar) return;
+  }
+
+  // Guardar copia del cierre en localStorage antes de limpiar el STORE
+  try {
+    const hist = JSON.parse(localStorage.getItem('orus_historico') || '{}');
+    hist[mes] = payload;
+    localStorage.setItem('orus_historico', JSON.stringify(hist));
+  } catch(e) {}
+
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
@@ -4444,13 +4466,6 @@ function confirmarCierreMes() {
   a.click();
   URL.revokeObjectURL(url);
 
-  // 2. Guardar en archivo histórico en localStorage (acumulado de meses)
-  try {
-    const hist = JSON.parse(localStorage.getItem('orus_historico') || '{}');
-    hist[mes] = payload;
-    localStorage.setItem('orus_historico', JSON.stringify(hist));
-  } catch(e) {}
-
   // 3. Calcular mes siguiente
   const [anio, mesN] = mes.split('-').map(Number);
   const siguienteAnio = mesN === 12 ? anio + 1 : anio;
@@ -4458,9 +4473,18 @@ function confirmarCierreMes() {
   const siguienteMesStr = `${siguienteAnio}-${String(siguienteMes).padStart(2,'0')}`;
 
   // 4. Traspasar niveles de combustible al mes nuevo
-  // FUEL_NIVEL ya tiene los niveles actuales — se mantienen igual
-  // Solo guardamos una marca de traspaso
+  // Enviar al GS para que quede registrado como nivel inicial del mes siguiente
   const fuelTraspaso = { ...FUEL_NIVEL };
+  if (GS_URL && !GS_URL.includes('PEGAR_URL')) {
+    const primerDiaSiguiente = `${siguienteAnio}-${String(siguienteMes).padStart(2,'0')}-01`;
+    enviarASheets({
+      tipo:          'nivel_combustible',
+      fecha:         primerDiaSiguiente,
+      hora:          new Date().toTimeString().slice(0,5),
+      niveles:       fuelTraspaso,
+      registradoPor: 'Cierre ' + nombre
+    });
+  }
 
   // 5. Limpiar STORE — eliminar solo los días del mes que cierra
   Object.keys(STORE).forEach(k => {
@@ -4926,7 +4950,7 @@ function getTimeClass(item, cls) {
       <button onclick="cerrarModalCierre()" style="flex:1;padding:13px;border-radius:10px;border:1px solid var(--border);background:#f7f8fa;font-size:14px;font-weight:600;cursor:pointer;color:var(--text)">
         Cancelar
       </button>
-      <button onclick="confirmarCierreMes()" style="flex:1;padding:13px;border-radius:10px;border:none;background:linear-gradient(135deg,#e53e3e,#c53030);color:#fff;font-size:14px;font-weight:700;cursor:pointer">
+      <button id="btn-confirmar-cierre" onclick="confirmarCierreMes()" style="flex:1;padding:13px;border-radius:10px;border:none;background:linear-gradient(135deg,#e53e3e,#c53030);color:#fff;font-size:14px;font-weight:700;cursor:pointer">
         ✔ Confirmar cierre
       </button>
     </div>
