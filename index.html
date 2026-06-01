@@ -4435,18 +4435,75 @@ function confirmarCierreMes() {
     combustible_cierre: { ...FUEL_NIVEL },
     datos:        {}
   };
-  // Solo incluir días del mes que cierra
-  Object.entries(STORE).forEach(([k, v]) => {
-    if (k.startsWith(mes)) payload.datos[k] = v;
-  });
+  // ── Construir payload.datos desde GS_DATA (fuente de verdad) ──────────────
+  // GS_DATA.vuelos es un array plano; reagrupar por fecha en el formato del STORE
+  // { 'YYYY-MM-DD': { registros: [ {heli,mat,base,piloto,dutyIn,dutyOut,vuelos,gls,...} ] } }
+  if (GS_DATA && Array.isArray(GS_DATA.vuelos) && GS_DATA.vuelos.length) {
+    // Agrupar filas del GS por fecha + heli + piloto (cada grupo = un registro de día)
+    const grupos = {};
+    GS_DATA.vuelos.forEach(function(v) {
+      if (!v.fecha || !v.fecha.startsWith(mes)) return;
+      const gkey = v.fecha + '|' + (v.heli||'') + '|' + (v.mat||'') + '|' + (v.piloto||'') + '|' + (v.base||'');
+      if (!grupos[gkey]) {
+        grupos[gkey] = {
+          fecha:     v.fecha,
+          heli:      v.heli      || '',
+          mat:       v.mat       || '',
+          base:      v.base      || '',
+          piloto:    v.piloto    || '',
+          copiloto:  v.copiloto  || '',
+          dutyIn:    v.dutyIn    || '',
+          dutyOut:   v.dutyOut   || '',
+          gls:       0,
+          prog:      v.prog      || 0,
+          cumpl:     v.cumpl     || 0,
+          estadoDia: v.estadoDia || 'OPERÓ',
+          causas:    v.causas    || [],
+          obs:       v.obs       || '',
+          vuelos:    []
+        };
+      }
+      const g = grupos[gkey];
+      const esElPrimero = g.vuelos.length === 0;
+      // El GLS del primer vuelo ya incluye el tank (campo p.gls en el GS)
+      if (esElPrimero) g.gls = v.gls || 0;
+      g.vuelos.push({
+        ini:   v.ini   || '',
+        fin:   v.fin   || '',
+        hrs:   v.hrs   || 0,
+        pax:   v.pax   || 0,
+        ll:    v.ll    || 0,
+        carga: v.carga || 0,
+        gls:   esElPrimero ? 0 : (v.gls || 0),
+        tipo:  v.tipo  || ''
+      });
+      // Actualizar prog/cumpl/estadoDia con el primer vuelo del grupo que los tenga
+      if (!g.prog  && v.prog)  g.prog  = v.prog;
+      if (!g.cumpl && v.cumpl) g.cumpl = v.cumpl;
+    });
 
-  // Advertir si el respaldo sale vacío — datos pueden estar solo en GS
-  const totalRegistros = Object.values(payload.datos).reduce((n, d) => n + (d.registros?.length || 0), 0);
-  if (totalRegistros === 0) {
+    // Insertar en payload.datos agrupado por fecha
+    Object.values(grupos).forEach(function(g) {
+      if (!payload.datos[g.fecha]) payload.datos[g.fecha] = { registros: [] };
+      payload.datos[g.fecha].registros.push(g);
+    });
+  }
+
+  // Fallback: STORE local si GS_DATA no tiene datos del mes
+  const totalGS = Object.values(payload.datos).reduce((n, d) => n + (d.registros?.length || 0), 0);
+  if (totalGS === 0) {
+    Object.entries(STORE).forEach(([k, v]) => {
+      if (k.startsWith(mes)) payload.datos[k] = v;
+    });
+  }
+
+  // Advertir si aún sale vacío
+  const totalFinal = Object.values(payload.datos).reduce((n, d) => n + (d.registros?.length || 0), 0);
+  if (totalFinal === 0) {
     const continuar = confirm(
-      `⚠️ Advertencia: el respaldo de ${nombre} no tiene registros en este dispositivo.\n\n` +
-      `Los datos de vuelo están en Google Sheets pero no en este navegador.\n\n` +
-      `El JSON que se descargará estará vacío. ¿Continuar de todas formas?`
+      `⚠️ Advertencia: el respaldo de ${nombre} no tiene registros.\n\n` +
+      `El GS no devolvió datos del mes (última sync: verifica el badge ⬤ GS).\n\n` +
+      `Intenta sincronizar primero tocando el badge y volviendo a cerrar el mes.`
     );
     if (!continuar) return;
   }
