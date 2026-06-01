@@ -4315,6 +4315,32 @@ function nombreMesLargo(mesStr) {
 
 function calcResumenMes(mesStr) {
   let hrs=0, segs=0, pax=0, kg=0, fuel=0, dias=0, prog=0, cumpl=0;
+
+  // Usar GS_DATA como fuente principal si está disponible
+  if (GS_DATA && Array.isArray(GS_DATA.vuelos) && GS_DATA.vuelos.length) {
+    const diasSet = new Set();
+    GS_DATA.vuelos.forEach(function(v) {
+      if (!v.fecha || !v.fecha.startsWith(mesStr)) return;
+      hrs   += v.hrs   || 0;
+      segs++;
+      pax   += v.pax   || 0;
+      kg    += (v.ll||0) + (v.carga||0);
+      fuel  += v.gls   || 0;
+      if (v.prog  > 0) prog  += v.prog;
+      if (v.cumpl > 0) cumpl += v.cumpl;
+      diasSet.add(v.fecha);
+    });
+    dias = diasSet.size;
+    // Usar resumen del GS para prog/cumpl si está disponible
+    if (GS_DATA.resumen) {
+      prog  = GS_DATA.resumen.prog  || prog;
+      cumpl = GS_DATA.resumen.cumpl || cumpl;
+    }
+    hrs = Math.round(hrs * 100) / 100;
+    return { hrs, segs, pax, kg, fuel, dias, prog, cumpl };
+  }
+
+  // Fallback: STORE local
   Object.entries(STORE).forEach(([k, dayObj]) => {
     if (!k.startsWith(mesStr) || !dayObj.registros?.length) return;
     dias++;
