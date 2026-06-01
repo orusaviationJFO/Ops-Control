@@ -2651,17 +2651,21 @@ function actualizarMat(sel) {
   // Poblar piloto con lista completa
   const fpil = document.getElementById('f-piloto');
   if (fpil) {
+    const valorAnteriorPil = fpil.value; // preservar selección actual
     const pilotos = [...new Set(Object.values(PILOTOS).flatMap(r => [...r.pilotos, ...r.copilotos]))].sort();
     fpil.innerHTML = '<option value="">— seleccionar piloto —</option>' +
       pilotos.map(p => `<option value="${p}">${p}</option>`).join('');
+    if (valorAnteriorPil) fpil.value = valorAnteriorPil; // restaurar
   }
 
   // Poblar copiloto con lista completa
   const fcop = document.getElementById('f-copiloto');
   if (fcop) {
+    const valorAnteriorCop = fcop.value; // preservar selección actual
     const copilotos = [...new Set(Object.values(PILOTOS).flatMap(r => [...r.pilotos, ...r.copilotos]))].sort();
     fcop.innerHTML = '<option value="N/A">N/A — Single pilot</option>' +
       copilotos.map(p => `<option value="${p}">${p}</option>`).join('');
+    if (valorAnteriorCop) fcop.value = valorAnteriorCop; // restaurar
   }
 
   // Instructor — siempre la misma lista fija
@@ -4731,13 +4735,17 @@ function fetchPilotosGS() {
       // Actualizar todos los selectores de pilotos en el formulario
       var fpil = document.getElementById('f-piloto');
       if (fpil) {
+        var valorAnteriorPil = fpil.value; // preservar selección actual
         fpil.innerHTML = '<option value="">— seleccionar piloto —</option>' +
           todos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+        if (valorAnteriorPil) fpil.value = valorAnteriorPil; // restaurar
       }
       var fcop = document.getElementById('f-copiloto');
       if (fcop) {
+        var valorAnteriorCop = fcop.value; // preservar selección actual
         fcop.innerHTML = '<option value="N/A">N/A — Single pilot</option>' +
           todos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+        if (valorAnteriorCop) fcop.value = valorAnteriorCop; // restaurar
       }
     }).catch(function(){});
 }
