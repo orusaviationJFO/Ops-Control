@@ -3585,7 +3585,8 @@ inicializarSOA();
           `📦 Respaldo encontrado:
 
 ` +
-          `• Exportado: ${payload.exportado ? new Date(payload.exportado).toLocaleString('es-CO') : 'desconocido'}
+          (payload.tipo === 'cierre_mensual' ? `• Mes: ${payload.nombre_mes || payload.mes}\n` : '') +
+          `• Exportado: ${payload.exportado || payload.cerrado_el ? new Date(payload.exportado || payload.cerrado_el).toLocaleString('es-CO') : 'desconocido'}
 ` +
           `• Días con datos: ${Object.keys(payload.datos).length}
 ` +
