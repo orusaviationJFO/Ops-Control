@@ -652,8 +652,8 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
         <option value="Camp La Rica">Camp La Rica</option>
       </select>
     </div>
-    <div class="frow" id="frow-piloto"><label>Piloto</label>
-      <select id="f-piloto" style="width:100%">
+    <div class="frow" id="frow-piloto"><label>Piloto <span style="color:var(--red)">*</span></label>
+      <select id="f-piloto" style="width:100%;border:1px solid var(--border)" onchange="this.style.borderColor=this.value?'var(--green)':'var(--red)'">
         <option value="">— seleccionar piloto —</option>
       </select>
     </div>
@@ -2848,6 +2848,24 @@ function guardarRegistro() {
 
   const [heli, mat] = heliVal.split('|');
 
+  // ── Validaciones obligatorias ─────────────────────────────────────
+  const pilotoVal = document.getElementById('f-piloto').value;
+  if (!pilotoVal) {
+    msg.style.color='var(--red)';
+    msg.textContent='⚠️ Selecciona el piloto — campo obligatorio';
+    document.getElementById('f-piloto').focus();
+    document.getElementById('frow-piloto').style.outline = '2px solid var(--red)';
+    document.getElementById('frow-piloto').style.borderRadius = '8px';
+    setTimeout(() => { document.getElementById('frow-piloto').style.outline = ''; }, 3000);
+    return;
+  }
+  const dutyInVal = getTimeValue('f-din');
+  if (!dutyInVal) {
+    msg.style.color='var(--red)';
+    msg.textContent='⚠️ Ingresa la hora Duty IN — campo obligatorio';
+    return;
+  }
+
   const items = document.querySelectorAll('#vuelos-list .vuelo-item');
   if (items.length === 0) { msg.style.color='var(--red)'; msg.textContent='Agrega al menos un vuelo'; return; }
 
@@ -3939,8 +3957,8 @@ function agregarBloqueHeli() {
           </select>
         </div>
         <div class="frow"><label>Piloto</label>
-          <select id="b${n}-piloto" style="width:100%">
-            <option value="">— seleccionar piloto —</option>
+          <select id="b${n}-piloto" style="width:100%;border:1px solid var(--border)" onchange="this.style.borderColor=this.value?'var(--green)':'var(--red)'">
+            <option value="">— piloto * obligatorio —</option>
           </select>
         </div>
         <div class="frow"><label>Copiloto</label>
@@ -4180,9 +4198,16 @@ function actualizarMatBloque(sel, matId) {
   const proyecto  = (document.getElementById('b'+n+'-proyecto') || {value:''}).value;
   const base      = document.getElementById('b'+n+'-base').value;
   const piloto    = document.getElementById('b'+n+'-piloto').value.trim();
+  if (!piloto) {
+    mostrarToast('⚠️ Selecciona el piloto — campo obligatorio','err');
+    const selPiloto = document.getElementById('b'+n+'-piloto');
+    if (selPiloto) { selPiloto.style.borderColor='var(--red)'; selPiloto.focus(); setTimeout(()=>{ selPiloto.style.borderColor=''; },3000); }
+    return;
+  }
+  const dutyIn    = getTimeValue('b'+n+'-din');
+  if (!dutyIn) { mostrarToast('⚠️ Ingresa la hora Duty IN — campo obligatorio','err'); return; }
   const copiloto  = (document.getElementById('b'+n+'-copiloto') || {value:'N/A'}).value;
   const instructor= (document.getElementById('b'+n+'-instructor') || {value:'N/A'}).value;
-  const dutyIn    = getTimeValue('b'+n+'-din');
   const dutyOut   = getTimeValue('b'+n+'-dout');
   const progB     = parseInt((document.getElementById('b'+n+'-prog') || {value:0}).value)||0;
   const cumplB    = parseInt((document.getElementById('b'+n+'-cumpl') || {value:0}).value)||0;
