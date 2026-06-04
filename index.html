@@ -1576,11 +1576,12 @@ function renderDashboard(){
       _gsMes.forEach(function(v) {
         // Por helicóptero
         var hk = v.heli || 'Sin equipo';
-        if (!mes.porHeli[hk]) mes.porHeli[hk] = {hrs:0, segs:0, pax:0, kg:0, mat:v.mat||''};
+        if (!mes.porHeli[hk]) mes.porHeli[hk] = {hrs:0, segs:0, pax:0, kg:0, gls:0, mat:v.mat||''};
         mes.porHeli[hk].hrs  += v.hrs||0;
         mes.porHeli[hk].segs += 1;
         mes.porHeli[hk].pax  += v.pax||0;
         mes.porHeli[hk].kg   += (v.ll||0)+(v.carga||0);
+        mes.porHeli[hk].gls  += v.gls||0;
 
         // Por proyecto (base_v = destino operacional)
         var pk = v.base_v || v.base || 'Sin proyecto';
@@ -1830,6 +1831,44 @@ function renderDashboard(){
       </div>
     </div>`;
   }).join('');
+
+  // ─ Consumo por helicóptero (desde GS_DATA) ─────────────────────
+  const glsPorHeli = {};
+  let glsTotalHeli = 0;
+  if (GS_DATA && Array.isArray(GS_DATA.vuelos)) {
+    const _mesPfx = dkey(cur).slice(0,7);
+    GS_DATA.vuelos.filter(v => v.fecha && v.fecha.startsWith(_mesPfx)).forEach(v => {
+      if ((v.gls||0) > 0) {
+        glsPorHeli[v.heli||'?'] = (glsPorHeli[v.heli||'?']||0) + (v.gls||0);
+        glsTotalHeli += v.gls;
+      }
+    });
+  }
+  const heliColors = {'BELL 412':'#3b82f6','KOALA':'#f97316','BK117':'#10b981'};
+  if (glsTotalHeli > 0) {
+    const heliRows = Object.entries(glsPorHeli)
+      .sort((a,b) => b[1]-a[1])
+      .map(([heli, gls]) => {
+        const pct   = Math.round(gls/glsTotalHeli*100*10)/10;
+        const color = heliColors[heli] || '#9ca3af';
+        const barW  = Math.round(pct);
+        return `
+        <div style="margin-bottom:9px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+            <span style="font-size:12px;font-weight:600;color:${color}">🚁 ${heli}</span>
+            <span style="font-family:var(--mono);font-size:12px">${Math.round(gls).toLocaleString('es-CO')} gls <span style="color:var(--muted)">· ${pct}%</span></span>
+          </div>
+          <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${barW}%;background:${color};border-radius:3px;transition:width .5s"></div>
+          </div>
+        </div>`;
+      }).join('');
+    fuelEl.innerHTML += `
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;font-family:var(--mono)">Consumo por aeronave — ${Math.round(glsTotalHeli).toLocaleString('es-CO')} gls totales</div>
+      ${heliRows}
+    </div>`;
+  }
 
   // ─ ⑨ Límites FTL acumulados por PILOTO ─
   const ftlEl = document.getElementById('dash-ftl');
