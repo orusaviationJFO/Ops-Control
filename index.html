@@ -2687,26 +2687,24 @@ function agregarNuevoPiloto() {
     return;
   }
 
-  // Detectar helicóptero seleccionado
-  const heliVal = document.getElementById('f-heli').value || '';
-  const [heli]  = heliVal.split('|');
-  const heliKey = heli || 'BELL 412'; // default a Bell 412 si no hay selección
-
-  // Agregar a todos los tipos de aeronave
+  // Agregar a todos los tipos de aeronave en memoria
   Object.values(PILOTOS).forEach(r => {
     if (!r.pilotos.includes(nombre)) r.pilotos.push(nombre);
   });
+
+  // Persistir en GS para que quede disponible en todos los dispositivos
+  enviarASheets({ tipo: 'piloto_nuevo', nombre: nombre, rol: 'piloto' });
 
   // Limpiar y refrescar selectores
   document.getElementById('f-nuevo-piloto').value = '';
   actualizarMat(document.getElementById('f-heli'));
 
-  // Seleccionar el piloto recién agregado en el selector de piloto
+  // Seleccionar el piloto recién agregado
   const fpil2 = document.getElementById('f-piloto');
   if (fpil2) fpil2.value = nombre;
 
   msg.style.color = 'var(--green)';
-  msg.textContent = `✔ ${nombre} agregado a la lista`;
+  msg.textContent = `✔ ${nombre} agregado y guardado en GS`;
   setTimeout(() => { msg.textContent = ''; }, 3000);
 }
 
@@ -2716,6 +2714,10 @@ function agregarNuevoCopiloto() {
   Object.values(PILOTOS).forEach(r => {
     if (!r.copilotos.includes(nombre)) r.copilotos.push(nombre);
   });
+
+  // Persistir en GS
+  enviarASheets({ tipo: 'piloto_nuevo', nombre: nombre, rol: 'copiloto' });
+
   document.getElementById('f-nuevo-copiloto').value = '';
   actualizarMat(document.getElementById('f-heli'));
   const fcop = document.getElementById('f-copiloto');
@@ -2729,6 +2731,10 @@ function agregarNuevoInstructor() {
     if (!r.instructores) r.instructores = [];
     if (!r.instructores.includes(nombre)) r.instructores.push(nombre);
   });
+
+  // Persistir en GS
+  enviarASheets({ tipo: 'piloto_nuevo', nombre: nombre, rol: 'instructor' });
+
   document.getElementById('f-nuevo-instructor').value = '';
   actualizarMat(document.getElementById('f-heli'));
   const fins = document.getElementById('f-instructor');
