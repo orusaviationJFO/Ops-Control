@@ -1854,8 +1854,11 @@ function renderDashboard(){
         const barW  = Math.round(pct);
         return `
         <div style="margin-bottom:9px">
-          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-            <span style="font-size:12px;font-weight:600;color:${color}">🚁 ${heli}</span>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+            <div style="display:flex;align-items:center;gap:8px">
+              ${heliPhoto(heli, 32)}
+              <span style="font-size:12px;font-weight:600;color:${color}">${heli}</span>
+            </div>
             <span style="font-family:var(--mono);font-size:12px">${Math.round(gls).toLocaleString('es-CO')} gls <span style="color:var(--muted)">· ${pct}%</span></span>
           </div>
           <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
