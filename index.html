@@ -1322,6 +1322,10 @@ const HISTORICO_EMBEBIDO = {};
   // Sin histórico embebido — mayo 2026 inicia limpio
 })();
 var GS_DATA = null;
+// Copilotos conocidos — lista global para clasificar correctamente en selectores
+// Agregar aquí cualquier copiloto nuevo que llegue a la operación
+var COPILOTOS_CONOCIDOS  = ['Barbesi','Ferro','Fonseca','Rivera'];
+var INSTRUCTORES_CONOCIDOS = ['Lara','Cruz','Sandoval','Díaz'];
 let STORE=(function(){
   try{
     const s=localStorage.getItem('opsdata');
@@ -2753,6 +2757,10 @@ function agregarNuevoPiloto() {
 function agregarNuevoCopiloto() {
   const nombre = document.getElementById('f-nuevo-copiloto').value.trim();
   if (!nombre) return;
+
+  // Agregar a la lista global de copilotos para que fetchPilotosGS lo clasifique bien
+  if (!COPILOTOS_CONOCIDOS.includes(nombre)) COPILOTOS_CONOCIDOS.push(nombre);
+
   Object.values(PILOTOS).forEach(r => {
     if (!r.copilotos.includes(nombre)) r.copilotos.push(nombre);
   });
@@ -2769,6 +2777,10 @@ function agregarNuevoCopiloto() {
 function agregarNuevoInstructor() {
   const nombre = document.getElementById('f-nuevo-instructor').value.trim();
   if (!nombre) return;
+
+  // Agregar a la lista global de instructores
+  if (!INSTRUCTORES_CONOCIDOS.includes(nombre)) INSTRUCTORES_CONOCIDOS.push(nombre);
+
   Object.values(PILOTOS).forEach(r => {
     if (!r.instructores) r.instructores = [];
     if (!r.instructores.includes(nombre)) r.instructores.push(nombre);
@@ -2778,9 +2790,15 @@ function agregarNuevoInstructor() {
   enviarASheets({ tipo: 'piloto_nuevo', nombre: nombre, rol: 'instructor' });
 
   document.getElementById('f-nuevo-instructor').value = '';
-  actualizarMat(document.getElementById('f-heli'));
+
+  // Refrescar selector de instructor inmediatamente
   const fins = document.getElementById('f-instructor');
-  if (fins) fins.value = nombre;
+  if (fins) {
+    const valorAnterior = fins.value;
+    fins.innerHTML = '<option value="N/A">N/A — Sin instructor</option>' +
+      INSTRUCTORES_CONOCIDOS.map(p => `<option value="${p}">${p}</option>`).join('');
+    fins.value = nombre;
+  }
 }
 
 
@@ -4671,9 +4689,8 @@ function cerrarModalMesNuevo() {
 function initInstructorSelect() {
   const fins = document.getElementById('f-instructor');
   if (!fins) return;
-  const instructores = ['Lara','Barbesi','Cruz','Sandoval','Díaz'];
   fins.innerHTML = '<option value="N/A">N/A — Sin instructor</option>' +
-    instructores.map(function(p) { return '<option value="'+p+'">'+p+'</option>'; }).join('');
+    INSTRUCTORES_CONOCIDOS.map(function(p) { return '<option value="'+p+'">'+p+'</option>'; }).join('');
 }
 
 
@@ -4772,9 +4789,6 @@ function fetchPilotosGS() {
     .then(function(data) {
       if (!data || !data.ok || !Array.isArray(data.pilotos)) return;
 
-      // Copilotos conocidos — lista hardcodeada para clasificar correctamente
-      var COPILOTOS_CONOCIDOS = ['Barbesi','Ferro','Fonseca','Rivera'];
-
       var todos = data.pilotos.map(function(p){ return p.nombre; })
         .filter(function(n) {
           if (!n) return false;
@@ -4785,8 +4799,8 @@ function fetchPilotosGS() {
           return true;
         }).sort();
 
-      // Separar en pilotos y copilotos
-      var solopilotos  = todos.filter(function(n){ return !COPILOTOS_CONOCIDOS.includes(n); });
+      // Separar en pilotos y copilotos usando la variable global COPILOTOS_CONOCIDOS
+      var solopilotos   = todos.filter(function(n){ return !COPILOTOS_CONOCIDOS.includes(n); });
       var solocopilotos = todos.filter(function(n){ return  COPILOTOS_CONOCIDOS.includes(n); });
       // Agregar copilotos conocidos aunque no estén aún en la hoja Pilotos del GS
       COPILOTOS_CONOCIDOS.forEach(function(c){
@@ -4809,6 +4823,23 @@ function fetchPilotosGS() {
         fcop.innerHTML = '<option value="N/A">N/A — Single pilot</option>' +
           solocopilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
         if (valorAnteriorCop) fcop.value = valorAnteriorCop;
+      }
+      // Actualizar selector de instructor con instructores del GS + lista global
+      var soloinstructores = data.pilotos
+        .filter(function(p){ return p.tipo === 'instructor'; })
+        .map(function(p){ return p.nombre; })
+        .filter(Boolean);
+      // Agregar instructores conocidos que no estén en el GS aún
+      INSTRUCTORES_CONOCIDOS.forEach(function(i){
+        if (!soloinstructores.includes(i)) soloinstructores.push(i);
+      });
+      soloinstructores.sort();
+      var fins = document.getElementById('f-instructor');
+      if (fins) {
+        var valorAnteriorIns = fins.value;
+        fins.innerHTML = '<option value="N/A">N/A — Sin instructor</option>' +
+          soloinstructores.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+        if (valorAnteriorIns) fins.value = valorAnteriorIns;
       }
     }).catch(function(){});
 }
