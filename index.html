@@ -4791,24 +4791,42 @@ function fetchPilotosGS() {
     .then(function(data) {
       if (!data || !data.ok || !Array.isArray(data.pilotos)) return;
 
-      var todos = data.pilotos.map(function(p){ return p.nombre; })
-        .filter(function(n) {
-          if (!n) return false;
-          var nu = n.toUpperCase();
-          if (nu.includes('TOTAL'))    return false;
-          if (nu.includes('RESUMEN'))  return false;
-          if (nu.includes('PROMEDIO')) return false;
-          return true;
-        }).sort();
+      var solopilotos      = [];
+      var solocopilotos    = [];
+      var soloinstructores = [];
 
-      // Separar en pilotos y copilotos usando la variable global COPILOTOS_CONOCIDOS
-      var solopilotos   = todos.filter(function(n){ return !COPILOTOS_CONOCIDOS.includes(n); });
-      var solocopilotos = todos.filter(function(n){ return  COPILOTOS_CONOCIDOS.includes(n); });
-      // Agregar copilotos conocidos aunque no estén aún en la hoja Pilotos del GS
+      data.pilotos.forEach(function(p) {
+        var nombre = (p.nombre || '').trim();
+        if (!nombre) return;
+        var nu = nombre.toUpperCase();
+        if (nu.includes('TOTAL') || nu.includes('RESUMEN') || nu.includes('PROMEDIO')) return;
+
+        // Columna Tipo del GS es la fuente de verdad
+        var tipo = (p.tipo || '').toLowerCase().trim();
+
+        // Fallback a listas globales si el GS no tiene Tipo aún
+        if (!tipo) {
+          if (COPILOTOS_CONOCIDOS.includes(nombre))    tipo = 'copiloto';
+          else if (INSTRUCTORES_CONOCIDOS.includes(nombre)) tipo = 'instructor';
+          else tipo = 'piloto';
+        }
+
+        if      (tipo === 'copiloto')    solocopilotos.push(nombre);
+        else if (tipo === 'instructor')  soloinstructores.push(nombre);
+        else                             solopilotos.push(nombre);
+      });
+
+      // Garantizar que las listas globales estén representadas aunque no estén en el GS
       COPILOTOS_CONOCIDOS.forEach(function(c){
         if (!solocopilotos.includes(c)) solocopilotos.push(c);
       });
+      INSTRUCTORES_CONOCIDOS.forEach(function(i){
+        if (!soloinstructores.includes(i)) soloinstructores.push(i);
+      });
+
+      solopilotos.sort();
       solocopilotos.sort();
+      soloinstructores.sort();
 
       // Actualizar selector de pilotos
       var fpil = document.getElementById('f-piloto');
@@ -4818,6 +4836,7 @@ function fetchPilotosGS() {
           solopilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
         if (valorAnteriorPil) fpil.value = valorAnteriorPil;
       }
+
       // Actualizar selector de copilotos
       var fcop = document.getElementById('f-copiloto');
       if (fcop) {
@@ -4826,16 +4845,8 @@ function fetchPilotosGS() {
           solocopilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
         if (valorAnteriorCop) fcop.value = valorAnteriorCop;
       }
-      // Actualizar selector de instructor con instructores del GS + lista global
-      var soloinstructores = data.pilotos
-        .filter(function(p){ return p.tipo === 'instructor'; })
-        .map(function(p){ return p.nombre; })
-        .filter(Boolean);
-      // Agregar instructores conocidos que no estén en el GS aún
-      INSTRUCTORES_CONOCIDOS.forEach(function(i){
-        if (!soloinstructores.includes(i)) soloinstructores.push(i);
-      });
-      soloinstructores.sort();
+
+      // Actualizar selector de instructor
       var fins = document.getElementById('f-instructor');
       if (fins) {
         var valorAnteriorIns = fins.value;
