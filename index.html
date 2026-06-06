@@ -1326,7 +1326,7 @@ var GS_DATA = null;
 // Copilotos conocidos — lista global para clasificar correctamente en selectores
 // Agregar aquí cualquier copiloto nuevo que llegue a la operación
 var COPILOTOS_CONOCIDOS  = ['Ferro','Fonseca','Rivera'];
-var INSTRUCTORES_CONOCIDOS = ['Lara','Berbesi','Cruz','Sandoval','Díaz'];
+var INSTRUCTORES_CONOCIDOS = ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'];
 let STORE=(function(){
   try{
     const s=localStorage.getItem('opsdata');
@@ -2684,11 +2684,11 @@ let vCount = 0;
 
 // ── Roster de pilotos por aeronave ──
 const PILOTOS = {
-  'KOALA':      { pilotos: ['Cruz','Zuñiga','Murcia'],                                                                        copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Sandoval','Díaz'] },
-  'BK117':      { pilotos: ['Lopez','Acosta'],                                                                                copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Sandoval','Díaz'] },
-  'BELL 412':   { pilotos: ['Hodek','Bernal','Maldonado','Lara','Ibañez','Delgado'],                                         copilotos: ['Ferro','Fonseca','Rivera'],   instructores: ['Lara','Berbesi','Cruz','Sandoval','Díaz'] },
-  'BELL 206L3': { pilotos: ['Cruz','Zuñiga','Murcia','Lopez','Acosta'],                                                       copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Sandoval','Díaz'] },
-  'BELL 206L4': { pilotos: ['Cruz','Zuñiga','Murcia','Lopez','Acosta'],                                                       copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Sandoval','Díaz'] },
+  'KOALA':      { pilotos: ['Cruz','Zuñiga','Murcia'],                                                                        copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
+  'BK117':      { pilotos: ['Lopez','Acosta'],                                                                                copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
+  'BELL 412':   { pilotos: ['Hodek','Bernal','Maldonado','Lara','Ibañez','Delgado'],                                         copilotos: ['Ferro','Fonseca','Rivera'],   instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
+  'BELL 206L3': { pilotos: ['Cruz','Zuñiga','Murcia','Lopez','Acosta'],                                                       copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
+  'BELL 206L4': { pilotos: ['Cruz','Zuñiga','Murcia','Lopez','Acosta'],                                                       copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
 };
 
 function actualizarMat(sel) {
@@ -2719,7 +2719,7 @@ function actualizarMat(sel) {
   const fins = document.getElementById('f-instructor');
   if (fins) {
     fins.innerHTML = '<option value="N/A">N/A — Sin instructor</option>' +
-      ['Lara','Berbesi','Cruz','Sandoval','Díaz'].map(p => `<option value="${p}">${p}</option>`).join('');
+      ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'].map(p => `<option value="${p}">${p}</option>`).join('');
   }
 
   recalcFTL();
@@ -4133,7 +4133,7 @@ function agregarBloqueHeli() {
     todosPilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
   var fins = document.getElementById('b'+n+'-instructor');
   if (fins) fins.innerHTML = '<option value="N/A">N/A — Sin instructor</option>' +
-    ['Lara','Berbesi','Cruz','Sandoval','Díaz'].map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+    ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'].map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
 
   // Agregar primer vuelo automáticamente
   addVueloBloque(n);
@@ -4261,7 +4261,7 @@ function actualizarMatBloque(sel, matId) {
   var fins = document.getElementById('b'+n+'-instructor');
   if (fins) {
     fins.innerHTML = '<option value="N/A">N/A — Sin instructor</option>' +
-      ['Lara','Berbesi','Cruz','Sandoval','Díaz'].map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+      ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'].map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
   }
 }function guardarBloque(n) {
   const heliVal   = document.getElementById('b'+n+'-heli').value;
