@@ -759,30 +759,10 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
       </div>
     </div>
 
-    <div id="vuelos-list"></div>
-    <button onclick="addVuelo()" class="btn-add" style="width:100%;padding:12px;border-radius:9px;background:rgba(229,62,62,.1);border:2px dashed #e53e3e;color:#e53e3e;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);letter-spacing:.3px">
-      ✚ Agregar vuelo
+    <div id="tareas-list"></div>
+    <button onclick="addTarea()" class="btn-add" style="width:100%;padding:12px;border-radius:9px;background:rgba(229,62,62,.1);border:2px dashed #e53e3e;color:#e53e3e;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);letter-spacing:.3px">
+      ✚ Agregar tarea de vuelo
     </button>
-  </div>
-
-  <div class="fcard">
-    <div class="fsec">Combustible</div>
-    <div class="frow" style="margin-bottom:0">
-      <label>Total GLS tanqueados hoy <span style="font-size:10px;color:var(--muted)">(solo si NO registró por vuelo)</span></label>
-      <input type="number" id="f-gls" placeholder="0" min="0" step="0.1" onfocus="validarDuplicacionGLS(this)" oninput="if(!this.value||this.value=='0') document.getElementById('gls-warn').style.display='none'">
-      <div id="gls-warn" style="display:none;color:#e53e3e;font-size:11px;font-weight:600;margin-top:5px;padding:6px 10px;background:rgba(229,62,62,0.08);border-radius:6px;border:1px solid rgba(229,62,62,0.25)">
-        ⚠ Ya registraste tanqueo en vuelos individuales (total: <span id="gls-warn-total">0</span> GLS).<br>
-        Si ingresas aquí también, el consumo se duplicará. Deja este campo en 0 o elimina los tanqueos por vuelo.
-      </div>
-    </div>
-  </div>
-
-  <div class="fcard">
-    <div class="fsec">Cumplimiento programación</div>
-    <div class="f2">
-      <div class="frow" style="margin-bottom:0"><label>Prog.</label><input type="number" id="f-prog" placeholder="0" min="0"></div>
-      <div class="frow" style="margin-bottom:0"><label>Cumplidos</label><input type="number" id="f-cumpl" placeholder="0" min="0"></div>
-    </div>
   </div>
 
   <div class="fcard">
@@ -2016,16 +1996,19 @@ function renderBitacora(){
     // Si el día viene del GS, agregar vuelos del GS como registros sintéticos
     if (dayObj._fromGS && GS_DATA && Array.isArray(GS_DATA.vuelos)) {
       const vGS = GS_DATA.vuelos.filter(v => v.fecha === fecha);
-      // Agrupar por heli
-      const porHeli = {};
+      // Agrupar por heli + OS para respetar las tareas
+      const porTarea = {};
       vGS.forEach(v => {
-        if (!porHeli[v.heli]) porHeli[v.heli] = {
+        const osKey = (v.os || '').trim();
+        const key = v.heli + '|' + (osKey || v.piloto || '');
+        if (!porTarea[key]) porTarea[key] = {
           heli:      v.heli,
           mat:       v.mat       || '',
           base:      v.base      || '',
           piloto:    v.piloto    || '',
           dutyIn:    v.dutyIn    || '',
           dutyOut:   v.dutyOut   || '',
+          os:        osKey,
           gls:       0,
           prog:      v.prog      || 0,
           cumpl:     v.cumpl     || 0,
@@ -2034,8 +2017,11 @@ function renderBitacora(){
           obs:       v.obs       || '',
           vuelos:    []
         };
-        if (v.gls > 0) porHeli[v.heli].gls += v.gls;
-        // Normalizar tipo: puede llegar como clave corta ('ll') o texto largo del mapTipo()
+        // Tomar prog/cumpl del primer vuelo de la tarea que los tenga
+        if (v.prog  > 0 && porTarea[key].prog  === 0) porTarea[key].prog  = v.prog;
+        if (v.cumpl > 0 && porTarea[key].cumpl === 0) porTarea[key].cumpl = v.cumpl;
+        if (v.gls > 0) porTarea[key].gls += v.gls;
+        // Normalizar tipo
         var tipoRaw = v.tipo || '';
         var tipoNorm = tipoRaw;
         if (tipoRaw.toLowerCase().includes('larga') || tipoRaw.toLowerCase().includes('externa')) tipoNorm = 'll';
@@ -2043,7 +2029,6 @@ function renderBitacora(){
         else if (tipoRaw.toLowerCase().includes('mixto')) tipoNorm = 'mixto';
         else if (tipoRaw.toLowerCase().includes('ferri') || tipoRaw.toLowerCase().includes('posicion')) tipoNorm = 'ferri';
         else if (tipoRaw.toLowerCase().includes('pasajero') || tipoRaw === 'pax') tipoNorm = 'pax';
-        // Si tipo sigue vacío, inferir por los valores
         if (!tipoNorm) {
           const ll = v.ll||0, ci = v.carga||0, p = v.pax||0;
           if      (ll > 0 && p === 0) tipoNorm = 'll';
@@ -2053,9 +2038,14 @@ function renderBitacora(){
           else if (p > 0)              tipoNorm = 'pax';
           else                         tipoNorm = 'ferri';
         }
-        porHeli[v.heli].vuelos.push({ ini:v.ini, fin:v.fin, hrs:v.hrs||0, pax:v.pax||0, ll:v.ll||0, carga:v.carga||0, gls:v.gls||0, origen:v.base||'', destino:v.base_v||v.base||'', tipo:tipoNorm, _gsHrs:true });
+        porTarea[key].vuelos.push({ ini:v.ini, fin:v.fin, hrs:v.hrs||0, pax:v.pax||0, ll:v.ll||0, carga:v.carga||0, gls:v.gls||0, origen:v.base||'', destino:v.base_v||v.base||'', tipo:tipoNorm, _gsHrs:true });
       });
-      dayObj.registros = Object.values(porHeli);
+      // Ordenar tareas cronológicamente por primer vuelo
+      dayObj.registros = Object.values(porTarea).sort((a,b) => {
+        const aIni = a.vuelos[0]?.ini || '';
+        const bIni = b.vuelos[0]?.ini || '';
+        return aIni.localeCompare(bIni);
+      });
     }
 
     // Registros de ese día
@@ -2086,7 +2076,9 @@ function renderBitacora(){
               ${heliPhoto(r.heli,44)}
             </div>
             <div>
-            <div style="font-weight:700;font-size:13px">${r.heli||'—'} <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">${r.mat||''}</span></div>
+            <div style="font-weight:700;font-size:13px">${r.heli||'—'} <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">${r.mat||''}</span>
+              ${r.os ? `<span style="font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(99,102,241,.15);color:#818cf8;margin-left:5px">OS ${r.os}</span>` : ''}
+            </div>
             <div style="font-size:11px;color:var(--muted);margin-top:2px">
               📍 ${r.base||'—'} · ${r.proyecto?'<span style="color:var(--accent)">'+r.proyecto+'</span> · ':''} ${r.piloto||'—'}
               ${r.dutyIn ? ' · Duty '+normalizarHora(r.dutyIn)+'–'+normalizarHora(r.dutyOut||'') : ''}
@@ -2819,13 +2811,65 @@ function inicializarPilotos() {
   }
 }
 
-function addVuelo() {
+// ── Sistema de Tareas ─────────────────────────────────────────────
+let tareaCount = 0;
+function addTarea() {
+  tareaCount++;
+  const tn = tareaCount;
+  const el = document.getElementById('tareas-list');
+  const div = document.createElement('div');
+  div.id = 'tarea-' + tn;
+  div.style.cssText = 'background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:13px;margin-bottom:14px';
+  div.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-size:12px;font-weight:700;color:var(--accent);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em">📋 Tarea #${tn}</span>
+      <button onclick="document.getElementById('tarea-${tn}').remove();recalcFTL()" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:2px 6px">✕ Quitar</button>
+    </div>
+    <div class="f2" style="margin-bottom:9px">
+      <div class="frow" style="margin-bottom:0">
+        <label>OS <span style="color:var(--muted);font-size:10px">(Orden de Servicio)</span></label>
+        <input type="text" id="t${tn}-os" placeholder="Ej: 1395" style="font-family:var(--mono);font-weight:700">
+      </div>
+      <div class="frow" style="margin-bottom:0">
+        <label>GLS tanqueados en esta tarea</label>
+        <input type="number" id="t${tn}-gls" placeholder="0" min="0" step="0.1" onchange="recalcGLSTareas()">
+      </div>
+    </div>
+    <div class="f2" style="margin-bottom:9px">
+      <div class="frow" style="margin-bottom:0"><label>Prog.</label><input type="number" id="t${tn}-prog" placeholder="0" min="0"></div>
+      <div class="frow" style="margin-bottom:0"><label>Cumplidos</label><input type="number" id="t${tn}-cumpl" placeholder="0" min="0"></div>
+    </div>
+    <div id="t${tn}-vuelos-list"></div>
+    <button onclick="addVuelo(${tn})" class="btn-add" style="width:100%;padding:9px;border-radius:8px;background:rgba(229,62,62,.08);border:1.5px dashed #e53e3e;color:#e53e3e;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);margin-top:4px">
+      ✚ Agregar vuelo a esta tarea
+    </button>`;
+  el.appendChild(div);
+  // Agregar primer vuelo automáticamente
+  addVuelo(tn);
+}
+
+function recalcGLSTareas() {
+  // Suma GLS de todas las tareas para FTL
+  let total = 0;
+  document.querySelectorAll('[id^="t"][id$="-gls"]').forEach(function(el) {
+    if (/^t\d+-gls$/.test(el.id)) total += parseFloat(el.value)||0;
+  });
+  // Actualizar campo legacy f-gls si existe (para compatibilidad)
+  var fgls = document.getElementById('f-gls');
+  if (fgls) fgls.value = total > 0 ? total : '';
+}
+
+function addVuelo(tareaNum) {
   vCount++;
   const n = vCount;
-  const el = document.getElementById('vuelos-list');
+  // Agregar al contenedor de la tarea específica o al contenedor legacy
+  const containerId = tareaNum ? 't' + tareaNum + '-vuelos-list' : 'vuelos-list';
+  const el = document.getElementById(containerId);
+  if (!el) return;
   const div = document.createElement('div');
   div.className = 'vuelo-item';
   div.id = 'vitem-' + n;
+  div.dataset.tarea = tareaNum || '';
   div.innerHTML = `
     <div class="vi-hdr">
       <span class="vi-num">VUELO #${n}</span>
@@ -2975,150 +3019,140 @@ function guardarRegistro() {
     return;
   }
 
-  const items = document.querySelectorAll('#vuelos-list .vuelo-item');
-  if (items.length === 0) { msg.style.color='var(--red)'; msg.textContent='Agrega al menos un vuelo'; return; }
+  // ── Leer tareas ────────────────────────────────────────────────────
+  const tareaEls = document.querySelectorAll('#tareas-list > div[id^="tarea-"]');
+  if (tareaEls.length === 0) {
+    msg.style.color='var(--red)';
+    msg.textContent='Agrega al menos una tarea de vuelo';
+    return;
+  }
 
-  const vuelos = [];
-  items.forEach(item => {
-    const ini = getTimeClass(item, 'v-ini');
-    const fin = getTimeClass(item, 'v-fin');
-    if (!ini || !fin) return;
-    const [ih,im] = ini.split(':').map(Number);
-    const [fh,fm] = fin.split(':').map(Number);
-    let diffM = (fh*60+fm) - (ih*60+im);
-    // Vuelos de helicóptero max ~8h. Si diffM es negativo:
-    // - Si abs <= 240 min (4h) → posible cruce de medianoche → sumar 24h
-    // - Si abs > 240 min → error de entrada → 0h (mostrar advertencia)
-    if (diffM < 0 && Math.abs(diffM) <= 240) {
-      diffM += 24*60; // cruce de medianoche legítimo
-    } else if (diffM < 0) {
-      diffM = 0; // error de entrada — ini y fin inconsistentes
-    }
-    const hrs = diffM / 60;
-    vuelos.push({
-      ini, fin, hrs: Math.round(hrs*100)/100,
-      origen: item.querySelector('.v-origen')?.value || '',
-      pax:   parseInt(item.querySelector('.v-pax').value)||0,
-      ll:    parseInt(item.querySelector('.v-ll').value)||0,
-      carga: parseInt(item.querySelector('.v-carga').value)||0,
-      gls:   parseInt(item.querySelector('.v-gls')?.value)||0,
-      base: item.querySelector('.v-base')?.value || document.getElementById('f-base').value,
-      fuel_loc: item.querySelector('.v-base')?.value || document.getElementById('f-base').value,
-      tipo: item.querySelector('.v-tipo')?.value || 'll',
-      traslado_comb: item.querySelector('.v-tiene-traslado')?.checked ? {
-        origen: item.querySelector('.v-tcomb-origen')?.value || '',
-        destino: item.querySelector('.v-tcomb-destino')?.value || '',
-        gls: parseFloat(item.querySelector('.v-tcomb-gls')?.value)||0
-      } : null
+  // Función helper para leer vuelos de un contenedor
+  function leerVuelos(contenedor, base) {
+    const items = contenedor.querySelectorAll('.vuelo-item');
+    const vuelos = [];
+    items.forEach(item => {
+      const ini = getTimeClass(item, 'v-ini');
+      const fin = getTimeClass(item, 'v-fin');
+      if (!ini || !fin) return;
+      const [ih,im] = ini.split(':').map(Number);
+      const [fh,fm] = fin.split(':').map(Number);
+      let diffM = (fh*60+fm) - (ih*60+im);
+      if (diffM < 0 && Math.abs(diffM) <= 240) diffM += 24*60;
+      else if (diffM < 0) diffM = 0;
+      vuelos.push({
+        ini, fin, hrs: Math.round(diffM/60*100)/100,
+        origen: item.querySelector('.v-origen')?.value || '',
+        pax:   parseInt(item.querySelector('.v-pax')?.value)||0,
+        ll:    parseInt(item.querySelector('.v-ll')?.value)||0,
+        carga: parseInt(item.querySelector('.v-carga')?.value)||0,
+        gls:   parseFloat(item.querySelector('.v-gls')?.value)||0,
+        base:  item.querySelector('.v-base')?.value || base,
+        fuel_loc: item.querySelector('.v-base')?.value || base,
+        tipo:  item.querySelector('.v-tipo')?.value || 'll',
+        traslado_comb: item.querySelector('.v-tiene-traslado')?.checked ? {
+          origen:  item.querySelector('.v-tcomb-origen')?.value || '',
+          destino: item.querySelector('.v-tcomb-destino')?.value || '',
+          gls:     parseFloat(item.querySelector('.v-tcomb-gls')?.value)||0
+        } : null
+      });
     });
-  });
+    return vuelos;
+  }
 
-  // Recoger estado del día y causas
-  // Lectura robusta del radio — funciona aunque el checked sea solo atributo HTML
+  // ── Recoger estado del día ─────────────────────────────────────────
   const estadoRadios = document.querySelectorAll('input[name="f-estado"]');
-  let estadoDia = 'OPERÓ'; // default siempre OPERÓ
+  let estadoDia = 'OPERÓ';
   let estadoChecked = false;
   estadoRadios.forEach(r => { if (r.checked) { estadoDia = r.value; estadoChecked = true; } });
-  // Si ninguno marcado por interacción del usuario, marcar el primero (OPERÓ) explícitamente
   if (!estadoChecked) {
     const primerRadio = document.querySelector('input[name="f-estado"][value="OPERÓ"]');
     if (primerRadio) primerRadio.checked = true;
   }
   const causas = [...document.querySelectorAll('.f-causa:checked')].map(cb => cb.value);
   const hTier  = parseFloat(document.getElementById('f-htier').value) || 0;
+  const base   = document.getElementById('f-base').value;
+  const keyStr = dkey(cur);
 
-  const key = dkey(cur);
-  if (!STORE[key]) STORE[key] = {registros:[]};
+  if (!STORE[keyStr]) STORE[keyStr] = {registros:[]};
 
-  STORE[key].registros.push({
-    heli, mat,
-    proyecto: document.getElementById('f-proyecto').value,
-    base:    document.getElementById('f-base').value,
-    piloto:  document.getElementById('f-piloto').value,
-    copiloto: document.getElementById('f-copiloto')?.value || '',
-    dutyIn:  getTimeValue('f-din'),
-    dutyOut: getTimeValue('f-dout'),
-    vuelos,
-    gls:   parseFloat(document.getElementById('f-gls').value)||0,
-    prog:  parseInt(document.getElementById('f-prog').value)||0,
-    cumpl: parseInt(document.getElementById('f-cumpl').value)||0,
-    estadoDia,
-    causas,
-    hTier,
-    obs:   document.getElementById('f-obs').value,
-    // FTL
-    cambiosConfig: calcVuelos().cambiosConfig,
-    briefingsOk:   [...document.querySelectorAll('#briefing-lista input:checked')].length
+  // ── Guardar un registro por tarea ──────────────────────────────────
+  const registrosGuardados = [];
+  tareaEls.forEach(tareaEl => {
+    const tn   = tareaEl.id.replace('tarea-', '');
+    const os   = (document.getElementById('t'+tn+'-os')?.value || '').trim();
+    const gls  = parseFloat(document.getElementById('t'+tn+'-gls')?.value) || 0;
+    const prog = parseInt(document.getElementById('t'+tn+'-prog')?.value) || 0;
+    const cumpl= parseInt(document.getElementById('t'+tn+'-cumpl')?.value) || 0;
+    const vuelos = leerVuelos(tareaEl, base);
+    if (vuelos.length === 0) return; // saltar tareas sin vuelos
+
+    const reg = {
+      heli, mat,
+      os,
+      proyecto: document.getElementById('f-proyecto').value,
+      base,
+      piloto:   document.getElementById('f-piloto').value,
+      copiloto: document.getElementById('f-copiloto')?.value || '',
+      dutyIn:   getTimeValue('f-din'),
+      dutyOut:  getTimeValue('f-dout'),
+      vuelos,
+      gls, prog, cumpl,
+      estadoDia, causas, hTier,
+      obs: document.getElementById('f-obs').value,
+      cambiosConfig: calcVuelos().cambiosConfig,
+      briefingsOk:   [...document.querySelectorAll('#briefing-lista input:checked')].length
+    };
+
+    STORE[keyStr].registros.push(reg);
+    enviarASheets(construirPayloadVuelo(reg, keyStr));
+    registrosGuardados.push(reg);
+
+    // ── Descontar GLS del tanque ─────────────────────────────────────
+    const glsVuelos = vuelos.reduce((a, v) => a + (v.gls || 0), 0);
+    const glsConsumidos = gls + glsVuelos;
+    if (glsConsumidos > 0 && base && FUEL_NIVEL[base] !== undefined) {
+      const antes   = FUEL_NIVEL[base];
+      const despues = Math.max(0, antes - glsConsumidos);
+      FUEL_NIVEL[base] = despues;
+      enviarASheets({
+        tipo: 'combustible', fecha: keyStr,
+        hora: new Date().toTimeString().slice(0,5),
+        base, heli, mat, gls: 0, drenaje: 0,
+        consumo: glsConsumidos,
+        nivelAnt: Math.round(antes), nivelPost: Math.round(despues),
+        ref: `Consumo vuelos ${heli} OS:${os}`, obs: ''
+      });
+      const cap = CAPS[base] || 9999;
+      const pct = Math.round(despues / cap * 100);
+      if (pct <= 20) {
+        setTimeout(() => {
+          const t = document.getElementById('toast-el');
+          t.style.background='#ff2233'; t.style.color='#fff';
+          t.textContent=`🔴 ${base}: nivel CRÍTICO ${pct}% — reabastecimiento urgente`;
+          t.classList.add('show');
+          setTimeout(()=>{ t.classList.remove('show'); t.style.background=''; t.style.color=''; },6000);
+        }, 1000);
+      } else if (pct <= 30) {
+        setTimeout(() => {
+          const t = document.getElementById('toast-el');
+          t.style.background='#ff7733'; t.style.color='#fff';
+          t.textContent=`🟠 ${base}: nivel en alerta ${pct}% — planificar reabastecimiento`;
+          t.classList.add('show');
+          setTimeout(()=>{ t.classList.remove('show'); t.style.background=''; t.style.color=''; },5000);
+        }, 1000);
+      }
+    }
   });
 
-  // Enviar a Google Sheets (asíncrono, no bloquea UI)
-  const keyStr = dkey(cur);
-  const lastReg = STORE[keyStr].registros[STORE[keyStr].registros.length - 1];
-  enviarASheets(construirPayloadVuelo(lastReg, keyStr));
-  localStorage.setItem('opsdata',JSON.stringify(STORE));
-
-  // ── Descontar GLS del tanque de la base automáticamente ──
-  const baseReg = lastReg.base;
-  // Sumar GLS del tanque principal + GLS de cada vuelo individual
-  const glsVuelos = (lastReg.vuelos || []).reduce((a, v) => a + (v.gls || 0), 0);
-  const glsConsumidos = (lastReg.gls || 0) + glsVuelos;
-  if (glsConsumidos > 0 && baseReg && FUEL_NIVEL[baseReg] !== undefined) {
-    const antes   = FUEL_NIVEL[baseReg];
-    const despues = Math.max(0, antes - glsConsumidos);
-    FUEL_NIVEL[baseReg] = despues;
-    localStorage.setItem('fuel_nivel_inicial', JSON.stringify(FUEL_NIVEL));
-
-    // ── Enviar consumo al GS (hoja Combustible) ────────────────
-    enviarASheets({
-      tipo:      'combustible',
-      fecha:     keyStr,
-      hora:      new Date().toTimeString().slice(0,5),
-      base:      baseReg,
-      heli:      lastReg.heli || '',
-      mat:       lastReg.mat  || '',
-      gls:       0,
-      drenaje:   0,
-      consumo:   glsConsumidos,
-      nivelAnt:  Math.round(antes),
-      nivelPost: Math.round(despues),
-      ref:       `Consumo vuelos ${lastReg.heli||''}`,
-      obs:       ''
-    });
-
-    // Registrar el movimiento en el historial de combustible
-    const ahora = new Date();
-    FUEL_ENTRADAS.unshift({
-      fecha: dkey(ahora),
-      hora:  ahora.toTimeString().slice(0,5),
-      base:  baseReg,
-      gls:   -glsConsumidos,  // negativo = consumo
-      ref:   `${heli} · ${mat} — consumo operacional`,
-      tipo:  'consumo'
-    });
-
-    // Alerta automática si el nivel cae a zona de alerta
-    const cap = CAPS[baseReg] || 9999;
-    const pct = Math.round(despues / cap * 100);
-    if (pct <= 20) {
-      setTimeout(() => {
-        const t = document.getElementById('toast-el');
-        t.style.background = '#ff2233'; t.style.color = '#fff';
-        t.textContent = `🔴 ${baseReg}: nivel CRÍTICO ${pct}% — reabastecimiento urgente`;
-        t.classList.add('show');
-        setTimeout(() => { t.classList.remove('show'); t.style.background=''; t.style.color=''; }, 6000);
-      }, 1000);
-    } else if (pct <= 30) {
-      setTimeout(() => {
-        const t = document.getElementById('toast-el');
-        t.style.background = '#ff7733'; t.style.color = '#fff';
-        t.textContent = `🟠 ${baseReg}: nivel en alerta ${pct}% — planificar reabastecimiento`;
-        t.classList.add('show');
-        setTimeout(() => { t.classList.remove('show'); t.style.background=''; t.style.color=''; }, 5000);
-      }, 1000);
-    }
+  if (registrosGuardados.length === 0) {
+    msg.style.color='var(--red)';
+    msg.textContent='Cada tarea necesita al menos un vuelo con horario';
+    return;
   }
 
-  mostrarToast('✅ Registro guardado correctamente','ok');
+  localStorage.setItem('opsdata', JSON.stringify(STORE));
+  mostrarToast(`✅ ${registrosGuardados.length} tarea(s) guardada(s)`,'ok');
 
   // Reset form
   document.getElementById('f-heli').value='';
@@ -3126,22 +3160,17 @@ function guardarRegistro() {
   document.getElementById('f-piloto').value='';
   if (document.getElementById('f-copiloto')) document.getElementById('f-copiloto').value='';
   if (document.getElementById('frow-copiloto')) document.getElementById('frow-copiloto').style.display='none';
-  document.getElementById('f-gls').value='';
-  document.getElementById('f-prog').value='';
-  document.getElementById('f-cumpl').value='';
+  if (document.getElementById('f-gls')) document.getElementById('f-gls').value='';
   document.getElementById('f-htier').value='';
   document.getElementById('f-obs').value='';
-  // Reset estado — setear tanto propiedad como disparar change
-  document.querySelectorAll('input[name="f-estado"]').forEach(r => {
-    r.checked = (r.value === 'OPERÓ');
-  });
+  document.querySelectorAll('input[name="f-estado"]').forEach(r => { r.checked = (r.value === 'OPERÓ'); });
   document.querySelectorAll('.f-causa').forEach(cb => cb.checked = false);
   document.getElementById('f-codigos-preview').textContent = '—';
-  document.getElementById('vuelos-list').innerHTML='';
-  vCount=0;
+  document.getElementById('tareas-list').innerHTML='';
+  tareaCount = 0; vCount = 0;
 
   msg.style.color='var(--green)';
-  msg.textContent='✓ Registro guardado correctamente';
+  msg.textContent=`✓ ${registrosGuardados.length} tarea(s) guardada(s) correctamente`;
   setTimeout(()=>{ msg.textContent=''; }, 3000);
 
   refreshAll();
@@ -3553,6 +3582,7 @@ document.addEventListener('change', e => {
       base:      registro.base,
       piloto:    registro.piloto,
       copiloto:  registro.copiloto || '',
+      os:        registro.os || '',
       dutyIn:    registro.dutyIn,
       dutyOut:   registro.dutyOut,
       vuelos:    registro.vuelos,
