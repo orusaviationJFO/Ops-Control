@@ -2898,7 +2898,39 @@ function addVuelo() {
         <div class="frow" style="margin-bottom:0"><label>Pasajeros</label><input type="number" class="v-pax" placeholder="0" min="0" step="1"></div>
       </div>
     </div>
-    <div class="frow" style="margin-bottom:0"><label>Tanqueo en este vuelo (gls)</label><input type="number" class="v-gls" placeholder="0" min="0" onchange="validarGLSIndividual(this)"></div>`;
+    <div class="frow" style="margin-bottom:0"><label>Tanqueo en este vuelo (gls)</label><input type="number" class="v-gls" placeholder="0" min="0" onchange="validarGLSIndividual(this)"></div>
+    <div class="v-traslado-comb" style="margin-top:9px;padding:9px;background:var(--card2);border:1px solid var(--border);border-radius:8px;display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:12px;color:var(--accent);font-weight:600">⛽ Traslado de combustible en bidones</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="frow" style="margin-bottom:0"><label>Base origen</label>
+          <select class="v-tcomb-origen" style="width:100%">
+            <option value="Mutatá">Mutatá</option>
+            <option value="Frontino">Frontino</option>
+            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp La Rica">Camp La Rica</option>
+          </select>
+        </div>
+        <div class="frow" style="margin-bottom:0"><label>Base destino</label>
+          <select class="v-tcomb-destino" style="width:100%">
+            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp La Rica">Camp La Rica</option>
+            <option value="Frontino">Frontino</option>
+            <option value="Mutatá">Mutatá</option>
+          </select>
+        </div>
+      </div>
+      <div class="frow" style="margin-bottom:0;margin-top:8px"><label>GLS trasladados en bidones</label>
+        <input type="number" class="v-tcomb-gls" placeholder="0" min="0" step="1">
+      </div>
+    </div>
+    <div class="frow" style="margin-bottom:0;margin-top:6px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--muted)">
+        <input type="checkbox" class="v-tiene-traslado" onchange="toggleTrasladoComb(this)" style="width:16px;height:16px;cursor:pointer">
+        Esta carga incluye combustible en bidones
+      </label>
+    </div>`;
   // Inicializar selectores de hora 24h — sin valor por defecto
   var wIni = div.querySelector('.v-ini-wrap');
   var wFin = div.querySelector('.v-fin-wrap');
@@ -2910,6 +2942,12 @@ function addVuelo() {
   var tipoSel = div.querySelector('.v-tipo');
   if (tipoSel) actualizarCamposVuelo(tipoSel);
   recalcFTL();
+}
+
+function toggleTrasladoComb(cb) {
+  const item = cb.closest('.vuelo-item');
+  const panel = item.querySelector('.v-traslado-comb');
+  if (panel) panel.style.display = cb.checked ? 'block' : 'none';
 }
 
 function guardarRegistro() {
@@ -2966,7 +3004,12 @@ function guardarRegistro() {
       gls:   parseInt(item.querySelector('.v-gls')?.value)||0,
       base: item.querySelector('.v-base')?.value || document.getElementById('f-base').value,
       fuel_loc: item.querySelector('.v-base')?.value || document.getElementById('f-base').value,
-      tipo: item.querySelector('.v-tipo')?.value || 'll'
+      tipo: item.querySelector('.v-tipo')?.value || 'll',
+      traslado_comb: item.querySelector('.v-tiene-traslado')?.checked ? {
+        origen: item.querySelector('.v-tcomb-origen')?.value || '',
+        destino: item.querySelector('.v-tcomb-destino')?.value || '',
+        gls: parseFloat(item.querySelector('.v-tcomb-gls')?.value)||0
+      } : null
     });
   });
 
@@ -4221,6 +4264,38 @@ function addVueloBloque(n) {
       </div>
     </div>
     <div class="frow" style="margin-bottom:0"><label>Tanqueo en este vuelo (gls)</label><input type="number" class="v-gls" placeholder="0" min="0" onchange="validarGLSIndividual(this)"></div>
+    <div class="v-traslado-comb" style="margin-top:9px;padding:9px;background:var(--card2);border:1px solid var(--border);border-radius:8px;display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:12px;color:var(--accent);font-weight:600">⛽ Traslado de combustible en bidones</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="frow" style="margin-bottom:0"><label>Base origen</label>
+          <select class="v-tcomb-origen" style="width:100%">
+            <option value="Mutatá">Mutatá</option>
+            <option value="Frontino">Frontino</option>
+            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp La Rica">Camp La Rica</option>
+          </select>
+        </div>
+        <div class="frow" style="margin-bottom:0"><label>Base destino</label>
+          <select class="v-tcomb-destino" style="width:100%">
+            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp La Rica">Camp La Rica</option>
+            <option value="Frontino">Frontino</option>
+            <option value="Mutatá">Mutatá</option>
+          </select>
+        </div>
+      </div>
+      <div class="frow" style="margin-bottom:0;margin-top:8px"><label>GLS trasladados en bidones</label>
+        <input type="number" class="v-tcomb-gls" placeholder="0" min="0" step="1">
+      </div>
+    </div>
+    <div class="frow" style="margin-bottom:0;margin-top:6px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--muted)">
+        <input type="checkbox" class="v-tiene-traslado" onchange="toggleTrasladoComb(this)" style="width:16px;height:16px;cursor:pointer">
+        Esta carga incluye combustible en bidones
+      </label>
+    </div>
   `;
   el.appendChild(div);
   // Inicializar selectores hora 24h — igual que addVuelo principal
@@ -4308,7 +4383,12 @@ function actualizarMatBloque(sel, matId) {
       carga: parseInt(item.querySelector('.v-carga')?.value)||0,
       gls:   parseFloat(item.querySelector('.v-gls')?.value)||0,
       fuel_loc: item.querySelector('.v-base')?.value || base,
-      tipo: item.querySelector('.v-tipo')?.value || 'll'
+      tipo: item.querySelector('.v-tipo')?.value || 'll',
+      traslado_comb: item.querySelector('.v-tiene-traslado')?.checked ? {
+        origen: item.querySelector('.v-tcomb-origen')?.value || '',
+        destino: item.querySelector('.v-tcomb-destino')?.value || '',
+        gls: parseFloat(item.querySelector('.v-tcomb-gls')?.value)||0
+      } : null
     });
   });
 
