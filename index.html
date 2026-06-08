@@ -2000,41 +2000,14 @@ function renderBitacora(){
       if (vGS.length > 0) {
         const porTarea = {};
 
-        // Primer paso: crear tareas solo para filas con dutyIn (cabeceras de tarea)
-        vGS.forEach(v => {
-          if (!v.dutyIn) return; // solo filas con dutyIn son cabeceras
-          const osKey = (v.os || '').trim();
-          const key = v.heli + '|' + v.piloto + '|' + v.dutyIn + '|' + osKey;
-          if (!porTarea[key]) porTarea[key] = {
-            heli:      v.heli,
-            mat:       v.mat       || '',
-            base:      v.base      || '',
-            piloto:    v.piloto    || '',
-            dutyIn:    v.dutyIn    || '',
-            dutyOut:   v.dutyOut   || '',
-            os:        osKey,
-            gls:       0,
-            prog:      v.prog      || 0,
-            cumpl:     v.cumpl     || 0,
-            estadoDia: v.estadoDia || 'OPERÓ',
-            causas:    Array.isArray(v.causas) ? v.causas : (v.causas ? String(v.causas).split(',').map(function(c){return c.trim();}).filter(Boolean) : []),
-            obs:       v.obs       || '',
-            vuelos:    [],
-            _keyBase:  v.heli + '|' + v.piloto  // para buscar vuelos huérfanos
-          };
-          if (v.prog  > 0 && porTarea[key].prog  === 0) porTarea[key].prog  = v.prog;
-          if (v.cumpl > 0 && porTarea[key].cumpl === 0) porTarea[key].cumpl = v.cumpl;
-        });
-
-        // Función para normalizar tipo
         function normTipo(v) {
-          var tipoRaw = (v.tipo || '').toLowerCase();
-          if (tipoRaw.includes('larga') || tipoRaw.includes('externa')) return 'll';
-          if (tipoRaw.includes('interna') || tipoRaw.includes('equipaje')) return 'interna';
-          if (tipoRaw.includes('mixto')) return 'mixto';
-          if (tipoRaw.includes('ferri') || tipoRaw.includes('posicion')) return 'ferri';
-          if (tipoRaw.includes('pasajero') || tipoRaw === 'pax') return 'pax';
-          const ll=v.ll||0, ci=v.carga||0, p=v.pax||0;
+          var t = (v.tipo || '').toLowerCase();
+          if (t.includes('larga')||t.includes('externa')) return 'll';
+          if (t.includes('interna')||t.includes('equipaje')) return 'interna';
+          if (t.includes('mixto')) return 'mixto';
+          if (t.includes('ferri')||t.includes('posicion')) return 'ferri';
+          if (t.includes('pasajero')||t==='pax') return 'pax';
+          const ll=v.ll||0,ci=v.carga||0,p=v.pax||0;
           if (ll>0&&p===0) return 'll';
           if (ll>0&&p>0)   return 'mixto';
           if (ci>0&&p>0)   return 'mixto';
@@ -2043,36 +2016,40 @@ function renderBitacora(){
           return 'ferri';
         }
 
-        // Segundo paso: asignar TODOS los vuelos a su tarea
         vGS.forEach(v => {
           const osKey = (v.os || '').trim();
+          // Clave: heli + piloto + OS (todos los vuelos tienen OS desde v5.16)
+          // Para vuelos sin OS (registros anteriores a v5.16), usar dutyIn como fallback
+          const key = v.heli + '|' + (v.piloto||'') + '|' + (osKey || v.dutyIn || '');
 
-          // Buscar la tarea correspondiente
-          let targetKey = null;
-
-          if (v.dutyIn && osKey) {
-            // Fila con dutyIn y OS → clave exacta
-            targetKey = v.heli + '|' + v.piloto + '|' + v.dutyIn + '|' + osKey;
-          } else if (v.dutyIn && !osKey) {
-            // Fila con dutyIn pero sin OS → buscar tarea del mismo heli+piloto+dutyIn
-            const prefix = v.heli + '|' + v.piloto + '|' + v.dutyIn + '|';
-            const match = Object.keys(porTarea).find(k => k.startsWith(prefix));
-            targetKey = match || null;
-          } else {
-            // Fila sin dutyIn (vuelo secundario) → buscar tarea más reciente del mismo heli+piloto
-            // cuyo primer vuelo sea anterior a este
-            const keyBase = v.heli + '|' + v.piloto;
-            const candidatos = Object.entries(porTarea)
-              .filter(([k, t]) => t._keyBase === keyBase)
-              .sort((a, b) => (b[1].dutyIn || '').localeCompare(a[1].dutyIn || ''));
-            if (candidatos.length > 0) targetKey = candidatos[0][0];
+          if (!porTarea[key]) {
+            porTarea[key] = {
+              heli:      v.heli,
+              mat:       v.mat       || '',
+              base:      v.base      || '',
+              piloto:    v.piloto    || '',
+              dutyIn:    v.dutyIn    || '',
+              dutyOut:   v.dutyOut   || '',
+              os:        osKey,
+              gls:       0,
+              prog:      0,
+              cumpl:     0,
+              estadoDia: 'OPERÓ',
+              causas:    [],
+              obs:       '',
+              vuelos:    []
+            };
           }
+          // Tomar dutyIn/Out, prog, cumpl, estado del primer vuelo que los tenga
+          if (v.dutyIn  && !porTarea[key].dutyIn)  porTarea[key].dutyIn  = v.dutyIn;
+          if (v.dutyOut && !porTarea[key].dutyOut) porTarea[key].dutyOut = v.dutyOut;
+          if (v.prog  > 0 && porTarea[key].prog  === 0) porTarea[key].prog  = v.prog;
+          if (v.cumpl > 0 && porTarea[key].cumpl === 0) porTarea[key].cumpl = v.cumpl;
+          if (v.estadoDia && v.estadoDia !== 'OPERÓ') porTarea[key].estadoDia = v.estadoDia;
+          if (v.obs) porTarea[key].obs = v.obs;
+          if (v.gls > 0) porTarea[key].gls += v.gls;
 
-          if (!targetKey || !porTarea[targetKey]) return;
-
-          if (v.gls > 0) porTarea[targetKey].gls += v.gls;
-
-          porTarea[targetKey].vuelos.push({
+          porTarea[key].vuelos.push({
             ini: v.ini, fin: v.fin, hrs: v.hrs||0,
             pax: v.pax||0, ll: v.ll||0, carga: v.carga||0,
             gls: v.gls||0, origen: v.base||'',
@@ -2081,12 +2058,10 @@ function renderBitacora(){
           });
         });
 
-        // Ordenar vuelos dentro de cada tarea cronológicamente
+        // Ordenar vuelos dentro de cada tarea y tareas entre sí cronológicamente
         Object.values(porTarea).forEach(t => {
           t.vuelos.sort((a,b) => (a.ini||'').localeCompare(b.ini||''));
         });
-
-        // Ordenar tareas por primer vuelo y filtrar tareas sin vuelos
         dayObj.registros = Object.values(porTarea)
           .filter(t => t.vuelos.length > 0)
           .sort((a,b) => (a.vuelos[0]?.ini||'').localeCompare(b.vuelos[0]?.ini||''));
