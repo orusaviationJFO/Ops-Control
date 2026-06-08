@@ -4164,7 +4164,11 @@ function agregarBloqueHeli() {
 
       <!-- Cumplimiento -->
       <div class="fcard" style="margin-bottom:10px;padding:12px">
-        <div class="fsec">Cumplimiento programación</div>
+        <div class="fsec">Tarea y cumplimiento</div>
+        <div class="frow" style="margin-bottom:9px">
+          <label>OS <span style="color:var(--muted);font-size:10px">(Orden de Servicio)</span></label>
+          <input type="text" id="b${n}-os" placeholder="Ej: 258" style="font-family:var(--mono);font-weight:700">
+        </div>
         <div class="f2">
           <div class="frow" style="margin-bottom:0"><label>Vuelos programados</label>
             <input type="number" id="b${n}-prog" placeholder="0" min="0">
@@ -4418,6 +4422,7 @@ function actualizarMatBloque(sel, matId) {
   const estadoDiaB= (document.getElementById('b'+n+'-estado') || {value:'OPERÓ'}).value;
   const gls       = parseFloat(document.getElementById('b'+n+'-gls').value)||0;
   const obs       = document.getElementById('b'+n+'-obs').value.trim();
+  const osB       = (document.getElementById('b'+n+'-os') || {value:''}).value.trim();
 
   const items = document.querySelectorAll('#b'+n+'-vuelos-list .vuelo-item');
   if (!items.length) { mostrarToast('Agrega al menos un vuelo','err'); return; }
@@ -4454,6 +4459,7 @@ function actualizarMatBloque(sel, matId) {
   if (!STORE[keyStr]) STORE[keyStr] = {registros:[]};
 
   const reg = { heli, mat, base, proyecto, piloto, copiloto, instructor,
+                os: osB,
                 dutyIn, dutyOut, vuelos, gls, tank:0,
                 prog: progB || vuelos.length, cumpl: cumplB || vuelos.length,
                 estadoDia: estadoDiaB, causas:[], hTier:0, obs };
