@@ -2059,12 +2059,18 @@ function renderBitacora(){
         });
 
         // Ordenar vuelos dentro de cada tarea y tareas entre sí cronológicamente
+        // Normalizar hora para sort: "7:42" → "07:42"
+        function padHora(h) {
+          if (!h) return '';
+          const p = h.split(':');
+          return p[0].padStart(2,'0') + ':' + (p[1]||'00');
+        }
         Object.values(porTarea).forEach(t => {
-          t.vuelos.sort((a,b) => (a.ini||'').localeCompare(b.ini||''));
+          t.vuelos.sort((a,b) => padHora(a.ini).localeCompare(padHora(b.ini)));
         });
         dayObj.registros = Object.values(porTarea)
           .filter(t => t.vuelos.length > 0)
-          .sort((a,b) => (a.vuelos[0]?.ini||'').localeCompare(b.vuelos[0]?.ini||''));
+          .sort((a,b) => padHora(a.vuelos[0]?.ini).localeCompare(padHora(b.vuelos[0]?.ini)));
       }
     }
 
