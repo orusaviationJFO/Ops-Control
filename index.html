@@ -1371,8 +1371,31 @@ function updateDate(){
   document.getElementById('date-day').innerHTML=fmtDay(cur)+(hasData(cur)?'<span class="has-data"></span>':'');
 }
 function changeDay(d){
-  const n=new Date(cur); n.setDate(n.getDate()+d); cur=n;
-  updateDate(); refreshAll(); iniciarSyncGS();
+  const prev = dkey(cur).slice(0,7);
+  const n = new Date(cur); n.setDate(n.getDate()+d); cur = n;
+  const mesCur  = dkey(cur).slice(0,7);
+  const mesHoy  = dkey(new Date()).slice(0,7);
+  updateDate();
+
+  if (mesCur !== mesHoy) {
+    // Mes histórico — fetch solo para bitácora, sin tocar dashboard ni totales
+    if (mesCur !== prev) {
+      // Cambió de mes — traer datos del GS histórico
+      fetchGSMesHistorico(mesCur, function(data) {
+        renderBitacora(data);
+      });
+    } else {
+      // Mismo mes histórico — re-renderizar con caché si existe
+      renderBitacora(GS_DATA_HISTORICO[mesCur] || null);
+    }
+    // Solo actualizar bitácora y dashboard visual (sin sync)
+    renderDashboard();
+    renderTotals();
+  } else {
+    // Mes actual — sync normal
+    refreshAll();
+    iniciarSyncGS();
+  }
 }
 
 // ── Tabs ──
@@ -1940,7 +1963,10 @@ function renderDashboard(){
     }
   }
 }
-function renderBitacora(){
+function renderBitacora(gsDataOverride){
+  // gsDataOverride: datos históricos del GS para meses anteriores
+  // Si no se pasa, usa GS_DATA (mes actual)
+  const gsDataFuente = gsDataOverride || GS_DATA;
   const el = document.getElementById('bitacora-list');
   const mesActual = dkey(cur).slice(0,7);  // usar fecha local, no UTC
 
@@ -1951,8 +1977,8 @@ function renderBitacora(){
     .forEach(([fecha, dayObj]) => { storeMap[fecha] = dayObj; });
 
   // Agregar días del GS que no están en STORE local
-  if (GS_DATA && Array.isArray(GS_DATA.vuelos)) {
-    GS_DATA.vuelos.forEach(v => {
+  if (gsDataFuente && Array.isArray(gsDataFuente.vuelos)) {
+    gsDataFuente.vuelos.forEach(v => {
       if (!v.fecha || !v.fecha.startsWith(mesActual)) return;
       if (!storeMap[v.fecha]) {
         // Crear entrada sintética para días del GS no en local
@@ -1995,8 +2021,8 @@ function renderBitacora(){
 
     // Siempre reconstruir registros desde GS_DATA para días del mes actual
     // GS_DATA es la fuente de verdad — garantiza que todos los dispositivos ven lo mismo
-    if (GS_DATA && Array.isArray(GS_DATA.vuelos)) {
-      const vGS = GS_DATA.vuelos.filter(v => v.fecha === fecha);
+    if (gsDataFuente && Array.isArray(gsDataFuente.vuelos)) {
+      const vGS = gsDataFuente.vuelos.filter(v => v.fecha === fecha);
       if (vGS.length > 0) {
         const porTarea = {};
 
@@ -4842,6 +4868,7 @@ function initInstructorSelect() {
 // ══ SYNC EN TIEMPO REAL ══════════════════════════════════════════
 function syncConGS() {
   if (!GS_URL || GS_URL.includes('PEGAR_URL')) return;
+  // syncConGS siempre trae el mes ACTUAL — para dashboard, totales y niveles
   var mes = dkey(new Date()).slice(0,7);
   var isFile = window.location.protocol === 'file:';
 
@@ -5050,10 +5077,41 @@ function syncConGS_jsonp(mes) {
   document.head.appendChild(script);
 }
 
+var _syncInterval = null;
 function iniciarSyncGS() {
-  // Llamar inmediatamente sin delay — el GS tarda ~10s y el render se actualiza al llegar
   syncConGS();
-  setInterval(syncConGS, 5 * 60 * 1000);
+  if (_syncInterval) clearInterval(_syncInterval);
+  _syncInterval = setInterval(syncConGS, 5 * 60 * 1000);
+}
+
+// ── Fetch histórico para bitácora de meses anteriores ─────────────
+// No toca GS_DATA ni el dashboard — solo alimenta la bitácora
+var GS_DATA_HISTORICO = {};  // cache por mes: { 'YYYY-MM': data }
+
+function fetchGSMesHistorico(mes, callback) {
+  if (!GS_URL || GS_URL.includes('PEGAR_URL')) return;
+
+  // Si ya está en caché usarlo directamente
+  if (GS_DATA_HISTORICO[mes]) {
+    if (callback) callback(GS_DATA_HISTORICO[mes]);
+    return;
+  }
+
+  // Mostrar badge de carga
+  var badge = document.getElementById('gs-sync-badge');
+  if (badge) { badge.textContent = '⬤ GS cargando…'; badge.style.color = '#f59e0b'; }
+
+  fetch(GS_URL + '?action=mes&mes=' + mes, { mode: 'cors', redirect: 'follow' })
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      if (!data || !Array.isArray(data.vuelos)) return;
+      GS_DATA_HISTORICO[mes] = data;  // guardar en caché
+      if (badge) { badge.textContent = '⬤ GS ' + mes; badge.style.color = 'var(--green)'; }
+      if (callback) callback(data);
+    })
+    .catch(function() {
+      if (badge) { badge.textContent = '⬤ GS off'; badge.style.color = 'var(--muted)'; }
+    });
 }
 
 
