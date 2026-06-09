@@ -2044,9 +2044,44 @@ function renderBitacora(gsDataOverride){
 
         vGS.forEach(v => {
           const osKey = (v.os || '').trim();
-          // Clave: heli + piloto + OS (todos los vuelos tienen OS desde v5.16)
-          // Para vuelos sin OS (registros anteriores a v5.16), usar dutyIn como fallback
-          const key = v.heli + '|' + (v.piloto||'') + '|' + (osKey || v.dutyIn || '');
+          const tieneOS     = osKey !== '';
+          const tieneDutyIn = (v.dutyIn || '') !== '';
+
+          let key;
+          if (tieneOS) {
+            // Vuelo con OS — clave exacta
+            key = v.heli + '|' + (v.piloto||'') + '|' + osKey;
+          } else if (tieneDutyIn) {
+            // Vuelo con dutyIn pero sin OS — buscar tarea existente del mismo heli+piloto
+            // Si solo hay una, asignarla; si hay varias, usar dutyIn como desambiguador
+            const prefix = v.heli + '|' + (v.piloto||'') + '|';
+            const matches = Object.keys(porTarea).filter(k => k.startsWith(prefix));
+            if (matches.length === 1) {
+              key = matches[0];
+            } else {
+              key = v.heli + '|' + (v.piloto||'') + '|' + v.dutyIn;
+            }
+          } else {
+            // Vuelo secundario sin OS ni dutyIn — asignar a la tarea más reciente del mismo heli+piloto
+            const prefix = v.heli + '|' + (v.piloto||'') + '|';
+            const matches = Object.keys(porTarea).filter(k => k.startsWith(prefix));
+            if (matches.length > 0) {
+              // Tomar la tarea cuyo dutyIn sea el más reciente anterior a este vuelo
+              const vIni = (v.ini || '00:00').padStart(5,'0');
+              let bestKey = matches[0];
+              let bestDuty = '';
+              matches.forEach(k => {
+                const duty = (porTarea[k].dutyIn || '00:00').padStart(5,'0');
+                if (duty <= vIni && duty >= bestDuty) {
+                  bestDuty = duty;
+                  bestKey = k;
+                }
+              });
+              key = bestKey;
+            } else {
+              key = v.heli + '|' + (v.piloto||'') + '|';
+            }
+          }
 
           if (!porTarea[key]) {
             porTarea[key] = {
