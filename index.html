@@ -2085,22 +2085,25 @@ function renderBitacora(gsDataOverride){
 
           if (!porTarea[key]) {
             porTarea[key] = {
-              heli:      v.heli,
-              mat:       v.mat       || '',
-              base:      v.base      || '',
-              piloto:    v.piloto    || '',
-              dutyIn:    v.dutyIn    || '',
-              dutyOut:   v.dutyOut   || '',
-              os:        osKey,
-              gls:       0,
-              prog:      0,
-              cumpl:     0,
-              estadoDia: 'OPERÓ',
-              causas:    [],
-              obs:       '',
-              vuelos:    []
+              heli:          v.heli,
+              mat:           v.mat           || '',
+              base:          v.base          || '',
+              piloto:        v.piloto        || '',
+              dutyIn:        v.dutyIn        || '',
+              dutyOut:       v.dutyOut       || '',
+              os:            osKey,
+              gls:           0,
+              prog:          0,
+              cumpl:         0,
+              estadoDia:     'OPERÓ',
+              causas:        [],
+              obs:           '',
+              registradoPor: v.registradoPor || '',
+              vuelos:        []
             };
           }
+          // Capturar registradoPor del primer vuelo que lo traiga
+          if (v.registradoPor && !porTarea[key].registradoPor) porTarea[key].registradoPor = v.registradoPor;
           // Tomar dutyIn/Out, prog, cumpl, estado del primer vuelo que los tenga
           if (v.dutyIn  && !porTarea[key].dutyIn)  porTarea[key].dutyIn  = v.dutyIn;
           if (v.dutyOut && !porTarea[key].dutyOut) porTarea[key].dutyOut = v.dutyOut;
@@ -2165,6 +2168,7 @@ function renderBitacora(gsDataOverride){
             <div>
             <div style="font-weight:700;font-size:13px">${r.heli||'—'} <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">${r.mat||''}</span>
               ${r.os ? `<span style="font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(99,102,241,.15);color:#818cf8;margin-left:5px">OS ${r.os}</span>` : ''}
+              ${r.registradoPor ? `<span style="font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(56,161,105,.12);color:#68d391;margin-left:4px" title="Registrado por">✍ ${r.registradoPor}</span>` : ''}
             </div>
             <div style="font-size:11px;color:var(--muted);margin-top:2px">
               📍 ${r.base||'—'} · ${r.proyecto?'<span style="color:var(--accent)">'+r.proyecto+'</span> · ':''} ${r.piloto||'—'}
