@@ -488,13 +488,6 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
   <input type="date" id="date-picker" title="Ir a fecha"
     style="margin-left:8px;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-family:var(--mono);cursor:pointer;outline:none;"
     onchange="goToDate(this.value)">
-  <div id="bit-heli-wrap" style="display:none;align-items:center;gap:6px;margin-left:8px">
-    <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">✈</span>
-    <select id="bit-heli-filter" onchange="BITACORA_FILTRO_HELI=this.value;renderBitacora()"
-      style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-family:var(--mono);cursor:pointer;outline:none;min-width:90px;">
-      <option value="">Todas</option>
-    </select>
-  </div>
 </div>
 
 <div class="tabs">
@@ -921,6 +914,14 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
 
 <!-- BITÁCORA -->
 <div class="view" id="view-bitacora">
+  <div style="display:flex;align-items:center;gap:8px;padding:10px 12px 4px;flex-wrap:wrap">
+    <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">Aeronave:</span>
+    <select id="bit-heli-filter" onchange="BITACORA_FILTRO_HELI=this.value;renderBitacora()"
+      style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-family:var(--mono);cursor:pointer;outline:none;">
+      <option value="">Todas</option>
+    </select>
+    <span id="bit-filter-badge" style="display:none;font-size:10px;font-family:var(--mono);padding:2px 8px;border-radius:10px;background:rgba(99,102,241,.15);color:#818cf8"></span>
+  </div>
   <div id="bitacora-list"></div>
 </div>
 
@@ -1318,6 +1319,7 @@ var GS_DATA = null;
 var COPILOTOS_CONOCIDOS  = ['Fierro','Fonseca','Rivera'];
 var INSTRUCTORES_CONOCIDOS = ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'];
 var BITACORA_FILTRO_HELI = '';  // filtro aeronave en bitácora
+var _lastBitacoraData = null;  // cache del último gsDataOverride usado en bitácora
 let STORE=(function(){
   try{
     const s=localStorage.getItem('opsdata');
@@ -1391,21 +1393,20 @@ function changeDay(d){
   updateDate();
 
   if (mesCur !== mesHoy) {
-    // Mes histórico — fetch solo para bitácora, sin tocar dashboard ni totales
     if (mesCur !== prev) {
-      // Cambió de mes — traer datos del GS histórico
+      // Cambió de mes — limpiar cache y traer datos del GS histórico
+      _lastBitacoraData = null;
       fetchGSMesHistorico(mesCur, function(data) {
         renderBitacora(data);
       });
     } else {
-      // Mismo mes histórico — re-renderizar con caché si existe
       renderBitacora(GS_DATA_HISTORICO[mesCur] || null);
     }
-    // Solo actualizar bitácora y dashboard visual (sin sync)
     renderDashboard();
     renderTotals();
   } else {
-    // Mes actual — sync normal
+    // Volvió al mes actual — limpiar cache para usar GS_DATA
+    _lastBitacoraData = null;
     refreshAll();
     iniciarSyncGS();
   }
@@ -1426,11 +1427,10 @@ function goToDate(val) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('view-bitacora').classList.add('active');
   document.querySelector('.tab[onclick*="bitacora"]')?.classList.add('active');
-  const wrap = document.getElementById('bit-heli-wrap');
-  if (wrap) wrap.style.display = 'flex';
 
   if (mesCur !== mesHoy) {
     if (mesCur !== prev) {
+      _lastBitacoraData = null;
       fetchGSMesHistorico(mesCur, function(data) { renderBitacora(data); });
     } else {
       renderBitacora(GS_DATA_HISTORICO[mesCur] || null);
@@ -1438,6 +1438,7 @@ function goToDate(val) {
     renderDashboard();
     renderTotals();
   } else {
+    _lastBitacoraData = null;
     refreshAll();
     iniciarSyncGS();
   }
@@ -1450,11 +1451,12 @@ function showTab(name,tab){
   document.getElementById('view-'+name).classList.add('active');
   if(tab) tab.classList.add('active');
   document.querySelector('.scroll-area')?.scrollTo(0,0);
-  // Mostrar selector de aeronave solo en bitácora
-  const wrap = document.getElementById('bit-heli-wrap');
-  if (wrap) wrap.style.display = name==='bitacora' ? 'flex' : 'none';
   // Re-renderizar vistas al cambiar de pestaña para mostrar datos del GS
-  if(name === 'bitacora')    renderBitacora();
+  if(name === 'bitacora') {
+    // Si estamos en mes actual, limpiar cache para usar GS_DATA fresco
+    if (dkey(cur).slice(0,7) === dkey(new Date()).slice(0,7)) _lastBitacoraData = null;
+    renderBitacora();
+  }
   if(name === 'dashboard')   renderDashboard();
   if(name === 'totales')     renderTotals();
   if(name === 'combustible') { renderNivelInicial(); renderCapInputs(); }
@@ -2013,8 +2015,12 @@ function renderDashboard(){
 }
 function renderBitacora(gsDataOverride){
   // gsDataOverride: datos históricos del GS para meses anteriores
-  // Si no se pasa, usa GS_DATA (mes actual)
-  const gsDataFuente = gsDataOverride || GS_DATA;
+  // Si no se pasa, reusar el último override cacheado (para re-renders por filtro)
+  // o usar GS_DATA (mes actual)
+  if (gsDataOverride !== undefined) {
+    _lastBitacoraData = gsDataOverride;  // cachear el override recibido
+  }
+  const gsDataFuente = (_lastBitacoraData !== null ? _lastBitacoraData : null) || GS_DATA;
   const el = document.getElementById('bitacora-list');
   const mesActual = dkey(cur).slice(0,7);  // usar fecha local, no UTC
 
