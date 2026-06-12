@@ -485,6 +485,9 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
     <div class="dw" id="date-day"></div>
   </div>
   <button class="dnb" onclick="changeDay(1)">›</button>
+  <input type="date" id="date-picker" title="Ir a fecha"
+    style="margin-left:8px;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-family:var(--mono);cursor:pointer;outline:none;"
+    onchange="goToDate(this.value)">
 </div>
 
 <div class="tabs">
@@ -1369,6 +1372,8 @@ function dayStats(key){
 function updateDate(){
   document.getElementById('date-display').textContent=fmtDate(cur);
   document.getElementById('date-day').innerHTML=fmtDay(cur)+(hasData(cur)?'<span class="has-data"></span>':'');
+  const pk = document.getElementById('date-picker');
+  if (pk) pk.value = dkey(cur);
 }
 function changeDay(d){
   const prev = dkey(cur).slice(0,7);
@@ -1393,6 +1398,36 @@ function changeDay(d){
     renderTotals();
   } else {
     // Mes actual — sync normal
+    refreshAll();
+    iniciarSyncGS();
+  }
+}
+
+function goToDate(val) {
+  if (!val) return;
+  // val viene como 'YYYY-MM-DD'
+  const parts = val.split('-');
+  const target = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+  const prev = dkey(cur).slice(0,7);
+  cur = target;
+  const mesCur = dkey(cur).slice(0,7);
+  const mesHoy = dkey(new Date()).slice(0,7);
+  updateDate();
+  // Ir a pestaña bitácora automáticamente
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('view-bitacora').classList.add('active');
+  document.querySelector('.tab[onclick*="bitacora"]')?.classList.add('active');
+
+  if (mesCur !== mesHoy) {
+    if (mesCur !== prev) {
+      fetchGSMesHistorico(mesCur, function(data) { renderBitacora(data); });
+    } else {
+      renderBitacora(GS_DATA_HISTORICO[mesCur] || null);
+    }
+    renderDashboard();
+    renderTotals();
+  } else {
     refreshAll();
     iniciarSyncGS();
   }
