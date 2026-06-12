@@ -914,6 +914,14 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
 
 <!-- BITÁCORA -->
 <div class="view" id="view-bitacora">
+  <div style="display:flex;align-items:center;gap:8px;padding:10px 12px 4px;flex-wrap:wrap">
+    <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">Aeronave:</span>
+    <select id="bit-heli-filter" onchange="BITACORA_FILTRO_HELI=this.value;renderBitacora()"
+      style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-family:var(--mono);cursor:pointer;outline:none;">
+      <option value="">Todas</option>
+    </select>
+    <span id="bit-filter-badge" style="display:none;font-size:10px;font-family:var(--mono);padding:2px 8px;border-radius:10px;background:rgba(99,102,241,.15);color:#818cf8"></span>
+  </div>
   <div id="bitacora-list"></div>
 </div>
 
@@ -1310,6 +1318,7 @@ var GS_DATA = null;
 // Agregar aquí cualquier copiloto nuevo que llegue a la operación
 var COPILOTOS_CONOCIDOS  = ['Fierro','Fonseca','Rivera'];
 var INSTRUCTORES_CONOCIDOS = ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'];
+var BITACORA_FILTRO_HELI = '';  // filtro aeronave en bitácora
 let STORE=(function(){
   try{
     const s=localStorage.getItem('opsdata');
@@ -2005,6 +2014,34 @@ function renderBitacora(gsDataOverride){
   const el = document.getElementById('bitacora-list');
   const mesActual = dkey(cur).slice(0,7);  // usar fecha local, no UTC
 
+  // ── Poblar selector de aeronaves con las disponibles en el mes ──
+  const selHeli = document.getElementById('bit-heli-filter');
+  if (selHeli && gsDataFuente && Array.isArray(gsDataFuente.vuelos)) {
+    const helisSet = new Set(gsDataFuente.vuelos
+      .filter(v => v.fecha && v.fecha.startsWith(mesActual) && v.heli)
+      .map(v => v.heli));
+    const helisSorted = Array.from(helisSet).sort();
+    const prev = selHeli.value;
+    selHeli.innerHTML = '<option value="">Todas</option>' +
+      helisSorted.map(h => `<option value="${h}"${h===prev?'selected':''}>${h}</option>`).join('');
+    // Restaurar filtro si el heli sigue disponible
+    if (!helisSorted.includes(BITACORA_FILTRO_HELI)) BITACORA_FILTRO_HELI = '';
+    selHeli.value = BITACORA_FILTRO_HELI;
+  }
+
+  // ── Badge de filtro activo ──
+  const badge = document.getElementById('bit-filter-badge');
+  if (badge) {
+    if (BITACORA_FILTRO_HELI) {
+      badge.textContent = '✕ ' + BITACORA_FILTRO_HELI;
+      badge.style.display = 'inline';
+      badge.onclick = () => { BITACORA_FILTRO_HELI=''; if(selHeli) selHeli.value=''; renderBitacora(gsDataOverride); };
+      badge.style.cursor = 'pointer';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
   // Combinar STORE local con GS_DATA (datos de todos los SOAs)
   const storeMap = {};
   Object.entries(STORE)
@@ -2025,8 +2062,13 @@ function renderBitacora(gsDataOverride){
     });
   }
 
-  // Ordenar días desc
+  // Ordenar días desc — si hay filtro activo, solo incluir días con vuelos del heli seleccionado
   const diasConDatos = Object.entries(storeMap)
+    .filter(([fecha]) => {
+      if (!BITACORA_FILTRO_HELI) return true;
+      if (!gsDataFuente || !Array.isArray(gsDataFuente.vuelos)) return true;
+      return gsDataFuente.vuelos.some(v => v.fecha === fecha && v.heli === BITACORA_FILTRO_HELI);
+    })
     .sort((a, b) => b[0].localeCompare(a[0]));
 
   if (!diasConDatos.length) {
@@ -2057,7 +2099,7 @@ function renderBitacora(gsDataOverride){
     // Siempre reconstruir registros desde GS_DATA para días del mes actual
     // GS_DATA es la fuente de verdad — garantiza que todos los dispositivos ven lo mismo
     if (gsDataFuente && Array.isArray(gsDataFuente.vuelos)) {
-      const vGS = gsDataFuente.vuelos.filter(v => v.fecha === fecha);
+      const vGS = gsDataFuente.vuelos.filter(v => v.fecha === fecha && (!BITACORA_FILTRO_HELI || v.heli === BITACORA_FILTRO_HELI));
       if (vGS.length > 0) {
         const porTarea = {};
 
