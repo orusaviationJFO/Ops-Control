@@ -1752,7 +1752,7 @@ function renderDashboard(){
       <div style="height:100%;width:${Math.min(pct||0,100)}%;background:${pctColor};border-radius:4px;transition:width .6s"></div>
     </div>
     ${pct!==null?`<div style="display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:var(--muted)">
-      <span>${mes.prog-mes.cumpl} vuelos no ejecutados</span>
+      <span>${mes.cumpl>mes.prog ? `+${mes.cumpl-mes.prog} vuelos sobre la programación` : mes.prog>mes.cumpl ? `${mes.prog-mes.cumpl} vuelos no ejecutados` : '✔ Exacto según programación'}</span>
       <span>${pct>=95?'✔ En meta':'⚠ Bajo meta'}</span>
     </div>`:''}`;
 
