@@ -488,6 +488,13 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
   <input type="date" id="date-picker" title="Ir a fecha"
     style="margin-left:8px;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-family:var(--mono);cursor:pointer;outline:none;"
     onchange="goToDate(this.value)">
+  <div id="bit-heli-wrap" style="display:none;align-items:center;gap:6px;margin-left:8px">
+    <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">✈</span>
+    <select id="bit-heli-filter" onchange="BITACORA_FILTRO_HELI=this.value;renderBitacora()"
+      style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-family:var(--mono);cursor:pointer;outline:none;min-width:90px;">
+      <option value="">Todas</option>
+    </select>
+  </div>
 </div>
 
 <div class="tabs">
@@ -914,14 +921,6 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
 
 <!-- BITÁCORA -->
 <div class="view" id="view-bitacora">
-  <div style="display:flex;align-items:center;gap:8px;padding:10px 12px 4px;flex-wrap:wrap">
-    <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">Aeronave:</span>
-    <select id="bit-heli-filter" onchange="BITACORA_FILTRO_HELI=this.value;renderBitacora()"
-      style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-family:var(--mono);cursor:pointer;outline:none;">
-      <option value="">Todas</option>
-    </select>
-    <span id="bit-filter-badge" style="display:none;font-size:10px;font-family:var(--mono);padding:2px 8px;border-radius:10px;background:rgba(99,102,241,.15);color:#818cf8"></span>
-  </div>
   <div id="bitacora-list"></div>
 </div>
 
@@ -1427,6 +1426,8 @@ function goToDate(val) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('view-bitacora').classList.add('active');
   document.querySelector('.tab[onclick*="bitacora"]')?.classList.add('active');
+  const wrap = document.getElementById('bit-heli-wrap');
+  if (wrap) wrap.style.display = 'flex';
 
   if (mesCur !== mesHoy) {
     if (mesCur !== prev) {
@@ -1449,6 +1450,9 @@ function showTab(name,tab){
   document.getElementById('view-'+name).classList.add('active');
   if(tab) tab.classList.add('active');
   document.querySelector('.scroll-area')?.scrollTo(0,0);
+  // Mostrar selector de aeronave solo en bitácora
+  const wrap = document.getElementById('bit-heli-wrap');
+  if (wrap) wrap.style.display = name==='bitacora' ? 'flex' : 'none';
   // Re-renderizar vistas al cambiar de pestaña para mostrar datos del GS
   if(name === 'bitacora')    renderBitacora();
   if(name === 'dashboard')   renderDashboard();
