@@ -801,7 +801,7 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
         document.querySelectorAll('input[name="f-estado"]').forEach(function(r) {
           if (r.checked) estado = r.value;
         });
-        var noOpero = (estado === 'NO OPERÓ' || estado === 'NO REQUERIDA');
+        var noOpero = (estado.indexOf('NO OPERÓ')===0 || estado.indexOf('NO REQUERIDA')===0);
         var tareasWrap = document.getElementById('tareas-list');
         var btnAddTarea = tareasWrap ? tareasWrap.nextElementSibling : null;
         if (tareasWrap) {
@@ -1543,7 +1543,7 @@ function renderDashboard(){
       const ed = r.estadoDia || 'OPERÓ';
       if      (ed === 'OPERÓ')        mes.estadosDia.opero++;
       else if (ed === 'PARCIAL')      mes.estadosDia.parcial++;
-      else if (ed === 'NO OPERÓ')     mes.estadosDia.noOpero++;
+      else if (ed.indexOf('NO OPERÓ')===0) mes.estadosDia.noOpero++;
       else if (ed === 'NO REQUERIDA') mes.estadosDia.noRequerida++;
 
       // Causas de no disponibilidad
@@ -1553,7 +1553,7 @@ function renderDashboard(){
 
       // ── FIX 2026-06-17c: no sumar horas si la aeronave no operó ese día ──
       const _edR = (r.estadoDia||'OPERÓ').toUpperCase().trim();
-      const _noOp = (_edR === 'NO OPERÓ' || _edR === 'NO REQUERIDA');
+      const _noOp = (_edR.indexOf('NO OPERÓ')===0 || _edR.indexOf('NO REQUERIDA')===0);
       (r.vuelos||[]).forEach(v => {
         if (_noOp) return;
         const h = v.hrs||0;
@@ -1664,7 +1664,7 @@ function renderDashboard(){
           var ed = (v.estadoDia || 'OPERÓ').toUpperCase().trim();
           if      (ed === 'OPERÓ' || ed === 'OPERO') mes.estadosDia.opero++;
           else if (ed === 'PARCIAL')                  mes.estadosDia.parcial++;
-          else if (ed === 'NO OPERÓ' || ed === 'NO OPERO') mes.estadosDia.noOpero++;
+          else if (ed.indexOf('NO OPERÓ')===0 || ed.indexOf('NO OPERO')===0) mes.estadosDia.noOpero++;
           else if (ed === 'NO REQUERIDA')             mes.estadosDia.noRequerida++;
           // Causas desde GS
           var causasArr = Array.isArray(v.causas) ? v.causas :
@@ -2267,7 +2267,7 @@ function renderBitacora(gsDataOverride){
             if (t.vuelos.length > 0) return true;
             // Incluir también si el estado indica que no operó (registro válido sin vuelos)
             const ed = (t.estadoDia||'').toUpperCase().trim();
-            return ed === 'NO OPERÓ' || ed === 'NO REQUERIDA';
+            return ed.indexOf('NO OPERÓ')===0 || ed.indexOf('NO REQUERIDA')===0;
           })
           .sort((a,b) => {
             // Registros sin vuelos van al final del día
@@ -2296,7 +2296,7 @@ function renderBitacora(gsDataOverride){
         : '';
       // Para registros sin vuelos (NO OPERÓ / NO REQUERIDA), mostrar "—" en lugar de 0h
       const _sinVuelos = (r.vuelos||[]).length === 0;
-      const _esNoOp = (r.estadoDia==='NO OPERÓ'||r.estadoDia==='NO REQUERIDA');
+      const _esNoOp = (r.estadoDia&&(r.estadoDia.indexOf('NO OPERÓ')===0||r.estadoDia.indexOf('NO REQUERIDA')===0));
 
       const causasBadges = (r.causas||[]).map(c =>
         `<span style="font-size:9px;font-family:var(--mono);padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.06);color:var(--muted)">${c}</span>`
