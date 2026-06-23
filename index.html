@@ -794,7 +794,7 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
       </label>
     </div>
     <script>
-    // ── FIX 2026-06-17c: ocultar tareas de vuelo cuando no hubo operación ──
+    // ── FIX: ocultar tareas y destacar causas cuando no hubo operación ──
     (function() {
       function actualizarVisibilidadTareas() {
         var estado = '';
@@ -802,6 +802,8 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
           if (r.checked) estado = r.value;
         });
         var noOpero = (estado.indexOf('NO OPERÓ')===0 || estado.indexOf('NO REQUERIDA')===0);
+
+        // Ocultar bloque de tareas de vuelo
         var tareasWrap = document.getElementById('tareas-list');
         var btnAddTarea = tareasWrap ? tareasWrap.nextElementSibling : null;
         if (tareasWrap) {
@@ -811,18 +813,35 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
         if (btnAddTarea && btnAddTarea.tagName === 'BUTTON') {
           btnAddTarea.style.display = noOpero ? 'none' : '';
         }
+
+        // Aviso general no opero
         var aviso = document.getElementById('aviso-no-opero');
         if (!aviso) {
           aviso = document.createElement('div');
           aviso.id = 'aviso-no-opero';
           aviso.style.cssText = 'background:rgba(255,68,85,.08);border:1.5px solid #ff4455;border-radius:9px;padding:12px 14px;font-size:13px;color:#ff4455;font-weight:600;margin-bottom:8px;display:none';
-          aviso.textContent = '⚠ Aeronave no operó — no aplica registrar piernas de vuelo. Solo completa Duty IN/OUT y observaciones si las hay.';
+          aviso.textContent = '⚠ Aeronave no operó — no aplica registrar piernas de vuelo. Solo completa Duty IN/OUT, marca la causa y agrega observaciones si las hay.';
           if (tareasWrap && tareasWrap.parentNode) {
             tareasWrap.parentNode.insertBefore(aviso, tareasWrap);
           }
         }
         aviso.style.display = noOpero ? 'block' : 'none';
+
+        // Destacar sección de causas
+        var secCausas = document.getElementById('sec-causas-nd');
+        var avisoCausa = document.getElementById('aviso-causa-requerida');
+        var lblCausas = document.getElementById('lbl-causas-nd');
+        if (secCausas) {
+          if (noOpero) {
+            secCausas.style.cssText = 'background:rgba(255,200,50,.05);border-radius:9px;padding:10px;border:1.5px solid rgba(255,200,50,.3);margin-top:8px;transition:all .2s';
+          } else {
+            secCausas.style.cssText = 'transition:all .2s';
+          }
+        }
+        if (avisoCausa) avisoCausa.style.display = noOpero ? 'block' : 'none';
+        if (lblCausas) lblCausas.style.color = noOpero ? '#ffc832' : '';
       }
+
       document.addEventListener('change', function(e) {
         if (e.target && e.target.name === 'f-estado') actualizarVisibilidadTareas();
       });
@@ -843,7 +862,11 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
     </div>
 
     <!-- Taxonomía: 8 categorías -->
-    <div class="disp-label" style="margin-top:14px">Causa(s) de no disponibilidad <span style="color:var(--muted);font-weight:400">(marcar las que apliquen)</span></div>
+    <div id="sec-causas-nd" style="transition:all .2s">
+    <div id="lbl-causas-nd" class="disp-label" style="margin-top:14px">Causa(s) de no disponibilidad <span style="color:var(--muted);font-weight:400">(marcar las que apliquen)</span></div>
+    <div id="aviso-causa-requerida" style="display:none;background:rgba(255,200,50,.10);border:1.5px solid #ffc832;border-radius:9px;padding:10px 13px;font-size:12px;color:#ffc832;font-weight:600;margin-bottom:10px">
+      ⚠ Aeronave no operó — selecciona al menos una causa de no disponibilidad (ej. CLI si fue por solicitud del cliente).
+    </div>
 
     <div class="tax-grid">
       <label class="tax-item" data-code="MNT-P">
@@ -926,6 +949,10 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
         </div>
       </label>
     </div>
+
+    </div><!-- /sec-causas-nd -->
+
+    </div><!-- /sec-causas-nd -->
 
     <div class="divider"></div>
 
@@ -1551,7 +1578,7 @@ function renderDashboard(){
         r.causas.forEach(c => { mes.causas[c] = (mes.causas[c]||0) + 1; });
       }
 
-      // ── FIX 2026-06-17c: no sumar horas si la aeronave no operó ese día ──
+      // ── FIX: no sumar horas si la aeronave no operó ese día ──
       const _edR = (r.estadoDia||'OPERÓ').toUpperCase().trim();
       const _noOp = (_edR.indexOf('NO OPERÓ')===0 || _edR.indexOf('NO REQUERIDA')===0);
       (r.vuelos||[]).forEach(v => {
@@ -2263,14 +2290,11 @@ function renderBitacora(gsDataOverride){
         });
         dayObj.registros = Object.values(porTarea)
           .filter(t => {
-            // Incluir siempre si tiene piernas de vuelo
             if (t.vuelos.length > 0) return true;
-            // Incluir también si el estado indica que no operó (registro válido sin vuelos)
             const ed = (t.estadoDia||'').toUpperCase().trim();
             return ed.indexOf('NO OPERÓ')===0 || ed.indexOf('NO REQUERIDA')===0;
           })
           .sort((a,b) => {
-            // Registros sin vuelos van al final del día
             const aIni = a.vuelos[0]?.ini || '99:99';
             const bIni = b.vuelos[0]?.ini || '99:99';
             return padHora(aIni).localeCompare(padHora(bIni));
@@ -2289,14 +2313,15 @@ function renderBitacora(gsDataOverride){
       const card = document.createElement('div');
       card.style.cssText = 'background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px';
 
+      const _edBadge = (r.estadoDia||'').toUpperCase().trim();
+      const _esNoOpBadge = _edBadge.indexOf('NO OPERÓ')===0 || _edBadge.indexOf('NO REQUERIDA')===0;
       const estadoBadge = r.estadoDia && r.estadoDia !== 'OPERÓ'
         ? `<span style="font-size:9px;font-family:var(--mono);padding:2px 7px;border-radius:4px;background:${
-            r.estadoDia==='NO OPERÓ'?'rgba(255,68,85,.15)':r.estadoDia==='NO REQUERIDA'?'rgba(113,128,150,.15)':'rgba(255,200,50,.15)'};color:${
-            r.estadoDia==='NO OPERÓ'?'var(--red)':r.estadoDia==='NO REQUERIDA'?'#718096':'var(--yellow)'}">${r.estadoDia}</span>`
+            _esNoOpBadge && _edBadge.indexOf('NO OPERÓ')===0 ?'rgba(255,68,85,.15)':_esNoOpBadge?'rgba(113,128,150,.15)':'rgba(255,200,50,.15)'};color:${
+            _esNoOpBadge && _edBadge.indexOf('NO OPERÓ')===0 ?'var(--red)':_esNoOpBadge?'#718096':'var(--yellow)'}">${r.estadoDia}</span>`
         : '';
-      // Para registros sin vuelos (NO OPERÓ / NO REQUERIDA), mostrar "—" en lugar de 0h
       const _sinVuelos = (r.vuelos||[]).length === 0;
-      const _esNoOp = (r.estadoDia&&(r.estadoDia.indexOf('NO OPERÓ')===0||r.estadoDia.indexOf('NO REQUERIDA')===0));
+      const _esNoOp = _esNoOpBadge;
 
       const causasBadges = (r.causas||[]).map(c =>
         `<span style="font-size:9px;font-family:var(--mono);padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.06);color:var(--muted)">${c}</span>`
