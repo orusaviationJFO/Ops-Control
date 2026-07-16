@@ -3101,10 +3101,10 @@ function addTarea() {
         <label>Proyecto <span style="font-size:10px;color:var(--muted)">(puede diferir del paso 1)</span></label>
         <select id="t${tn}-proyecto" style="width:100%">
           <option value="">Seleccionar…</option>
-          <option value="Pantanos" ${proyectoPadre==='Pantanos'?'selected':''}>Pantanos</option>
-          <option value="La Rica"  ${proyectoPadre==='La Rica'?'selected':''}>La Rica</option>
-          <option value="La Equis" ${proyectoPadre==='La Equis'?'selected':''}>La Equis</option>
-          <option value="Comita"   ${proyectoPadre==='Comita'?'selected':''}>Comita</option>
+          <option value="Pantanos">Pantanos</option>
+          <option value="La Rica">La Rica</option>
+          <option value="La Equis">La Equis</option>
+          <option value="Comita">Comita</option>
         </select>
       </div>
     </div>
@@ -3123,6 +3123,9 @@ function addTarea() {
       ✚ Agregar vuelo a esta tarea
     </button>`;
   el.appendChild(div);
+  // Setear proyecto por defecto DESPUÉS de insertar en el DOM
+  const selProyecto = document.getElementById('t'+tn+'-proyecto');
+  if (selProyecto && proyectoPadre) selProyecto.value = proyectoPadre;
   addVuelo(tn);
 }
 
