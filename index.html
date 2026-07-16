@@ -2399,8 +2399,8 @@ function renderBitacora(gsDataOverride){
             <span style="font-family:var(--mono);font-weight:600;color:var(--green);width:36px;text-align:right">${(v.hrs<24?(v.hrs>=1?(v.hrs).toFixed(1)+"h":Math.round(v.hrs*60)+"min"):(v.hrs>=60?(v.hrs/60).toFixed(1)+"h":Math.round(v.hrs)+"min"))}</span>
             <span style="color:var(--muted);width:60px;text-align:right;font-size:10px">${tipoLabel}</span>
             ${v.pax>0?`<span class="lc pax" style="font-size:9px">${v.pax}p</span>`:''}
-            ${(v.ll||0)>0?`<span class="lc kg" style="font-size:9px">${v.ll}kg</span>`:''}`;
-          vuelosWrap.appendChild(row);
+            ${(v.ll||0)>0?`<span class="lc kg" style="font-size:9px">${v.ll>=1000?(v.ll/1000).toFixed(1)+'t':v.ll+'kg'}</span>`:''}
+            ${(v.carga||0)>0?`<span class="lc kg" style="font-size:9px">${v.carga>=1000?(v.carga/1000).toFixed(1)+'t':v.carga+'kg'}</span>`:''}`;          vuelosWrap.appendChild(row);
         });
         card.appendChild(vuelosWrap);
       }
