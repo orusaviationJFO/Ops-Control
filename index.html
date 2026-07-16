@@ -3083,6 +3083,10 @@ function addTarea() {
   const div = document.createElement('div');
   div.id = 'tarea-' + tn;
   div.style.cssText = 'background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:13px;margin-bottom:14px';
+
+  // Tomar el proyecto del paso 1 como valor por defecto
+  const proyectoPadre = document.getElementById('f-proyecto')?.value || '';
+
   div.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <span style="font-size:12px;font-weight:700;color:var(--accent);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em">📋 Tarea #${tn}</span>
@@ -3094,20 +3098,31 @@ function addTarea() {
         <input type="text" id="t${tn}-os" placeholder="Ej: 1395" style="font-family:var(--mono);font-weight:700">
       </div>
       <div class="frow" style="margin-bottom:0">
-        <label>GLS tanqueados en esta tarea</label>
-        <input type="number" id="t${tn}-gls" placeholder="0" min="0" step="0.1" onchange="recalcGLSTareas()">
+        <label>Proyecto <span style="font-size:10px;color:var(--muted)">(puede diferir del paso 1)</span></label>
+        <select id="t${tn}-proyecto" style="width:100%">
+          <option value="">Seleccionar…</option>
+          <option value="Pantanos" ${proyectoPadre==='Pantanos'?'selected':''}>Pantanos</option>
+          <option value="La Rica"  ${proyectoPadre==='La Rica'?'selected':''}>La Rica</option>
+          <option value="La Equis" ${proyectoPadre==='La Equis'?'selected':''}>La Equis</option>
+          <option value="Comita"   ${proyectoPadre==='Comita'?'selected':''}>Comita</option>
+        </select>
       </div>
     </div>
     <div class="f2" style="margin-bottom:9px">
-      <div class="frow" style="margin-bottom:0"><label>Prog.</label><input type="number" id="t${tn}-prog" placeholder="0" min="0"></div>
-      <div class="frow" style="margin-bottom:0"><label>Cumplidos</label><input type="number" id="t${tn}-cumpl" placeholder="0" min="0"></div>
+      <div class="frow" style="margin-bottom:0">
+        <label>GLS tanqueados en esta tarea</label>
+        <input type="number" id="t${tn}-gls" placeholder="0" min="0" step="0.1" onchange="recalcGLSTareas()">
+      </div>
+      <div class="f2" style="margin-bottom:0;gap:9px">
+        <div class="frow" style="margin-bottom:0"><label>Prog.</label><input type="number" id="t${tn}-prog" placeholder="0" min="0"></div>
+        <div class="frow" style="margin-bottom:0"><label>Cumplidos</label><input type="number" id="t${tn}-cumpl" placeholder="0" min="0"></div>
+      </div>
     </div>
     <div id="t${tn}-vuelos-list"></div>
     <button onclick="addVuelo(${tn})" class="btn-add" style="width:100%;padding:9px;border-radius:8px;background:rgba(229,62,62,.08);border:1.5px dashed #e53e3e;color:#e53e3e;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);margin-top:4px">
       ✚ Agregar vuelo a esta tarea
     </button>`;
   el.appendChild(div);
-  // Agregar primer vuelo automáticamente
   addVuelo(tn);
 }
 
@@ -3347,17 +3362,19 @@ function guardarRegistro() {
   const registrosGuardados = [];
   tareaEls.forEach(tareaEl => {
     const tn   = tareaEl.id.replace('tarea-', '');
-    const os   = (document.getElementById('t'+tn+'-os')?.value || '').trim();
-    const gls  = parseFloat(document.getElementById('t'+tn+'-gls')?.value) || 0;
-    const prog = parseInt(document.getElementById('t'+tn+'-prog')?.value) || 0;
-    const cumpl= parseInt(document.getElementById('t'+tn+'-cumpl')?.value) || 0;
-    const vuelos = leerVuelos(tareaEl, base);
-    if (vuelos.length === 0) return; // saltar tareas sin vuelos
+    const os      = (document.getElementById('t'+tn+'-os')?.value || '').trim();
+    const proyectoTarea = document.getElementById('t'+tn+'-proyecto')?.value ||
+                          document.getElementById('f-proyecto').value || '';
+    const gls     = parseFloat(document.getElementById('t'+tn+'-gls')?.value) || 0;
+    const prog    = parseInt(document.getElementById('t'+tn+'-prog')?.value) || 0;
+    const cumpl   = parseInt(document.getElementById('t'+tn+'-cumpl')?.value) || 0;
+    const vuelos  = leerVuelos(tareaEl, base);
+    if (vuelos.length === 0) return;
 
     const reg = {
       heli, mat,
       os,
-      proyecto: document.getElementById('f-proyecto').value,
+      proyecto: proyectoTarea,
       base,
       piloto:   document.getElementById('f-piloto').value,
       copiloto: document.getElementById('f-copiloto')?.value || '',
