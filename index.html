@@ -3280,9 +3280,14 @@ function toggleTrasladoComb(cb) {
 }
 
 async function guardarRegistro() {
+  const btnSave = document.querySelector('button[onclick="guardarRegistro()"]');
+  if (btnSave) { btnSave.disabled = true; btnSave.textContent = '⏳ Guardando…'; }
   const heliVal = document.getElementById('f-heli').value;
   const msg = document.getElementById('form-msg');
-  if (!heliVal) { msg.style.color='var(--red)'; msg.textContent='Selecciona el helicóptero'; return; }
+  if (!heliVal) {
+    if (btnSave) { btnSave.disabled = false; btnSave.textContent = 'Guardar registro del día'; }
+    msg.style.color='var(--red)'; msg.textContent='Selecciona el helicóptero'; return;
+  }
 
   const [heli, mat] = heliVal.split('|');
 
@@ -3433,6 +3438,7 @@ async function guardarRegistro() {
   }  // fin for...of tareas
 
   if (registrosGuardados.length === 0) {
+    if (btnSave) { btnSave.disabled = false; btnSave.textContent = 'Guardar registro del día'; }
     msg.style.color='var(--red)';
     msg.textContent='Cada tarea necesita al menos un vuelo con horario';
     return;
@@ -3463,6 +3469,7 @@ async function guardarRegistro() {
   refreshAll();
   updateDate();
   setTimeout(()=>showTab('bitacora', document.querySelectorAll('.tab')[2]), 800);
+  if (btnSave) { btnSave.disabled = false; btnSave.textContent = 'Guardar registro del día'; } // v5.17d: re-habilitar botón
 }
 
 // ══════════════════════════════════════════
