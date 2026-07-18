@@ -3279,7 +3279,7 @@ function toggleTrasladoComb(cb) {
   if (panel) panel.style.display = cb.checked ? 'block' : 'none';
 }
 
-function guardarRegistro() {
+async function guardarRegistro() {
   const heliVal = document.getElementById('f-heli').value;
   const msg = document.getElementById('form-msg');
   if (!heliVal) { msg.style.color='var(--red)'; msg.textContent='Selecciona el helicóptero'; return; }
@@ -3363,7 +3363,7 @@ function guardarRegistro() {
 
   // ── Guardar un registro por tarea ──────────────────────────────────
   const registrosGuardados = [];
-  tareaEls.forEach(tareaEl => {
+  for (const tareaEl of tareaEls) {  // v5.17d: for...of + await secuencia requests (evita race condition en GS)
     const tn   = tareaEl.id.replace('tarea-', '');
     const os      = (document.getElementById('t'+tn+'-os')?.value || '').trim();
     const proyectoTarea = document.getElementById('t'+tn+'-proyecto')?.value ||
@@ -3372,7 +3372,7 @@ function guardarRegistro() {
     const prog    = parseInt(document.getElementById('t'+tn+'-prog')?.value) || 0;
     const cumpl   = parseInt(document.getElementById('t'+tn+'-cumpl')?.value) || 0;
     const vuelos  = leerVuelos(tareaEl, base);
-    if (vuelos.length === 0) return;
+    if (vuelos.length === 0) continue;  // for...of usa continue en vez de return
 
     const reg = {
       heli, mat,
@@ -3392,7 +3392,7 @@ function guardarRegistro() {
     };
 
     STORE[keyStr].registros.push(reg);
-    enviarASheets(construirPayloadVuelo(reg, keyStr));
+    await enviarASheets(construirPayloadVuelo(reg, keyStr));  // v5.17d: await — espera confirmación antes de enviar la siguiente tarea
     registrosGuardados.push(reg);
 
     // ── Descontar GLS del tanque ─────────────────────────────────────
@@ -3430,7 +3430,7 @@ function guardarRegistro() {
         }, 1000);
       }
     }
-  });
+  }  // fin for...of tareas
 
   if (registrosGuardados.length === 0) {
     msg.style.color='var(--red)';
