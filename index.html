@@ -3279,15 +3279,10 @@ function toggleTrasladoComb(cb) {
   if (panel) panel.style.display = cb.checked ? 'block' : 'none';
 }
 
-async function guardarRegistro() {
-  const btnSave = document.querySelector('button[onclick="guardarRegistro()"]');
-  if (btnSave) { btnSave.disabled = true; btnSave.textContent = '⏳ Guardando…'; }
+function guardarRegistro() {
   const heliVal = document.getElementById('f-heli').value;
   const msg = document.getElementById('form-msg');
-  if (!heliVal) {
-    if (btnSave) { btnSave.disabled = false; btnSave.textContent = 'Guardar registro del día'; }
-    msg.style.color='var(--red)'; msg.textContent='Selecciona el helicóptero'; return;
-  }
+  if (!heliVal) { msg.style.color='var(--red)'; msg.textContent='Selecciona el helicóptero'; return; }
 
   const [heli, mat] = heliVal.split('|');
 
@@ -3368,7 +3363,7 @@ async function guardarRegistro() {
 
   // ── Guardar un registro por tarea ──────────────────────────────────
   const registrosGuardados = [];
-  for (const tareaEl of tareaEls) {  // v5.17d: for...of + await secuencia requests (evita race condition en GS)
+  tareaEls.forEach(tareaEl => {
     const tn   = tareaEl.id.replace('tarea-', '');
     const os      = (document.getElementById('t'+tn+'-os')?.value || '').trim();
     const proyectoTarea = document.getElementById('t'+tn+'-proyecto')?.value ||
@@ -3377,7 +3372,7 @@ async function guardarRegistro() {
     const prog    = parseInt(document.getElementById('t'+tn+'-prog')?.value) || 0;
     const cumpl   = parseInt(document.getElementById('t'+tn+'-cumpl')?.value) || 0;
     const vuelos  = leerVuelos(tareaEl, base);
-    if (vuelos.length === 0) continue;  // for...of usa continue en vez de return
+    if (vuelos.length === 0) return;
 
     const reg = {
       heli, mat,
@@ -3397,7 +3392,7 @@ async function guardarRegistro() {
     };
 
     STORE[keyStr].registros.push(reg);
-    await enviarASheets(construirPayloadVuelo(reg, keyStr));  // v5.17d: await — espera confirmación antes de enviar la siguiente tarea
+    enviarASheets(construirPayloadVuelo(reg, keyStr));
     registrosGuardados.push(reg);
 
     // ── Descontar GLS del tanque ─────────────────────────────────────
@@ -3435,10 +3430,9 @@ async function guardarRegistro() {
         }, 1000);
       }
     }
-  }  // fin for...of tareas
+  });
 
   if (registrosGuardados.length === 0) {
-    if (btnSave) { btnSave.disabled = false; btnSave.textContent = 'Guardar registro del día'; }
     msg.style.color='var(--red)';
     msg.textContent='Cada tarea necesita al menos un vuelo con horario';
     return;
@@ -3469,7 +3463,6 @@ async function guardarRegistro() {
   refreshAll();
   updateDate();
   setTimeout(()=>showTab('bitacora', document.querySelectorAll('.tab')[2]), 800);
-  if (btnSave) { btnSave.disabled = false; btnSave.textContent = 'Guardar registro del día'; } // v5.17d: re-habilitar botón
 }
 
 // ══════════════════════════════════════════
@@ -4423,28 +4416,15 @@ function agregarBloqueHeli() {
         </div>
       </div>
 
-      <!-- Vuelos -->
-      <div class="fcard" style="margin-bottom:10px;padding:12px">
-        <div class="fsec">Vuelos</div>
-        <div id="b${n}-vuelos-list"></div>
-        <button onclick="addVueloBloque(${n})" class="btn-add">+ Agregar vuelo</button>
-      </div>
+      <!-- Tareas de vuelo -->
+      <div id="b${n}-tareas-list"></div>
+      <button onclick="addTareaBloque(${n})" class="btn-add" style="width:100%;padding:12px;border-radius:9px;background:rgba(229,62,62,.1);border:2px dashed #e53e3e;color:#e53e3e;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);letter-spacing:.3px;margin-bottom:10px">
+        ✚ Agregar tarea de vuelo
+      </button>
 
-      <!-- Cumplimiento -->
+      <!-- Estado del día -->
       <div class="fcard" style="margin-bottom:10px;padding:12px">
-        <div class="fsec">Tarea y cumplimiento</div>
-        <div class="frow" style="margin-bottom:9px">
-          <label>OS <span style="color:var(--muted);font-size:10px">(Orden de Servicio)</span></label>
-          <input type="text" id="b${n}-os" placeholder="Ej: 258" style="font-family:var(--mono);font-weight:700">
-        </div>
-        <div class="f2">
-          <div class="frow" style="margin-bottom:0"><label>Vuelos programados</label>
-            <input type="number" id="b${n}-prog" placeholder="0" min="0">
-          </div>
-          <div class="frow" style="margin-bottom:0"><label>Vuelos cumplidos</label>
-            <input type="number" id="b${n}-cumpl" placeholder="0" min="0">
-          </div>
-        </div>
+        <div class="fsec">Estado del día</div>
         <div class="frow" style="margin-bottom:0"><label>Estado del día</label>
           <select id="b${n}-estado">
             <option value="OPERÓ">✅ OPERÓ</option>
@@ -4507,7 +4487,7 @@ function agregarBloqueHeli() {
     ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'].map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
 
   // Agregar primer vuelo automáticamente
-  addVueloBloque(n);
+  addTareaBloque(n);
   setTimeout(function(){ div.scrollIntoView({behavior:'smooth',block:'start'}); }, 100);
 }
 let vCountB = {};
@@ -4640,6 +4620,187 @@ function addVueloBloque(n) {
 }
 
 
+let tCountB = {};
+let vtCountBT = {};
+
+function addTareaBloque(n) {
+  if (!tCountB[n]) tCountB[n] = 0;
+  tCountB[n]++;
+  const tn = tCountB[n];
+  const el = document.getElementById('b'+n+'-tareas-list');
+  const div = document.createElement('div');
+  div.id = 'btarea-'+n+'-'+tn;
+  div.style.cssText = 'background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:13px;margin-bottom:14px';
+  const proyectoPadreB = (document.getElementById('b'+n+'-proyecto') || {value:''}).value;
+  div.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span style="font-size:12px;font-weight:700;color:var(--accent);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em">📋 Tarea #${tn}</span>
+      <button onclick="document.getElementById('btarea-${n}-${tn}').remove()" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:2px 6px">✕ Quitar</button>
+    </div>
+    <div class="f2" style="margin-bottom:9px">
+      <div class="frow" style="margin-bottom:0">
+        <label>OS <span style="color:var(--muted);font-size:10px">(Orden de Servicio)</span></label>
+        <input type="text" id="bt-${n}-${tn}-os" placeholder="Ej: 1395" style="font-family:var(--mono);font-weight:700">
+      </div>
+      <div class="frow" style="margin-bottom:0">
+        <label>Proyecto <span style="font-size:10px;color:var(--muted)">(puede diferir)</span></label>
+        <select id="bt-${n}-${tn}-proyecto" style="width:100%">
+          <option value="">Seleccionar…</option>
+          <option value="Pantanos">Pantanos</option>
+          <option value="La Rica">La Rica</option>
+          <option value="La Equis">La Equis</option>
+          <option value="Comita">Comita</option>
+        </select>
+      </div>
+    </div>
+    <div class="f2" style="margin-bottom:9px">
+      <div class="frow" style="margin-bottom:0">
+        <label>GLS tanqueados en esta tarea</label>
+        <input type="number" id="bt-${n}-${tn}-gls" placeholder="0" min="0" step="0.1">
+      </div>
+      <div class="f2" style="margin-bottom:0;gap:9px">
+        <div class="frow" style="margin-bottom:0"><label>Prog.</label><input type="number" id="bt-${n}-${tn}-prog" placeholder="0" min="0"></div>
+        <div class="frow" style="margin-bottom:0"><label>Cumplidos</label><input type="number" id="bt-${n}-${tn}-cumpl" placeholder="0" min="0"></div>
+      </div>
+    </div>
+    <div id="bt-${n}-${tn}-vuelos-list"></div>
+    <button onclick="addVueloBloqueTask(${n},${tn})" class="btn-add" style="width:100%;padding:9px;border-radius:8px;background:rgba(229,62,62,.08);border:1.5px dashed #e53e3e;color:#e53e3e;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);margin-top:4px">
+      ✚ Agregar vuelo a esta tarea
+    </button>`;
+  el.appendChild(div);
+  // Set default proyecto after DOM insert
+  const selProy = document.getElementById('bt-'+n+'-'+tn+'-proyecto');
+  if (selProy && proyectoPadreB) selProy.value = proyectoPadreB;
+  addVueloBloqueTask(n, tn);
+}
+
+function addVueloBloqueTask(n, tn) {
+  const key = n+'_'+tn;
+  if (!vtCountBT[key]) vtCountBT[key] = 0;
+  vtCountBT[key]++;
+  const vn = vtCountBT[key];
+  const el = document.getElementById('bt-'+n+'-'+tn+'-vuelos-list');
+  if (!el) return;
+  const div = document.createElement('div');
+  div.className = 'vuelo-item';
+  div.id = 'btvitem-'+n+'-'+tn+'-'+vn;
+  div.innerHTML = `
+    <div class="vi-hdr">
+      <span class="vi-num">VUELO #${vn}</span>
+      <button class="vi-del" onclick="document.getElementById('btvitem-${n}-${tn}-${vn}').remove()">✕ Quitar</button>
+    </div>
+    <div class="f2" style="margin-bottom:9px">
+      <div class="frow" style="margin-bottom:0">
+        <label>Origen</label>
+        <select class="v-origen" style="width:100%">
+          <option value="">— seleccionar —</option>
+          <optgroup label="Bases">
+            <option value="Frontino">Frontino</option>
+            <option value="Mutatá">Mutatá</option>
+            <option value="Quibdó">Quibdó</option>
+            <option value="La Quiebra">La Quiebra</option>
+            <option value="CABI">CABI</option>
+            <option value="Aeropuerto SKUI">Aeropuerto SKUI</option>
+          </optgroup>
+          <optgroup label="Campamentos">
+            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp La Rica">Camp La Rica</option>
+            <option value="Camp Comitá">Camp Comitá</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="frow" style="margin-bottom:0">
+        <label>Inicio</label>
+        <span class="v-ini-wrap" style="display:inline-block"></span>
+      </div>
+    </div>
+    <div class="f2" style="margin-bottom:9px">
+      <div class="frow" style="margin-bottom:0">
+        <label>Destino</label>
+        <select class="v-base" style="width:100%">
+          <option value="">— seleccionar —</option>
+          <optgroup label="Bases">
+            <option value="Frontino">Frontino</option>
+            <option value="Mutatá">Mutatá</option>
+            <option value="Quibdó">Quibdó</option>
+            <option value="La Quiebra">La Quiebra</option>
+            <option value="CABI">CABI</option>
+            <option value="Aeropuerto SKUI">Aeropuerto SKUI</option>
+          </optgroup>
+          <optgroup label="Campamentos">
+            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp La Rica">Camp La Rica</option>
+            <option value="Camp Comitá">Camp Comitá</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="frow" style="margin-bottom:0">
+        <label>Fin</label>
+        <span class="v-fin-wrap" style="display:inline-block"></span>
+      </div>
+    </div>
+    <div class="frow" style="margin-bottom:9px">
+      <label>Tipo de operación</label>
+      <select class="v-tipo" onchange="actualizarCamposVuelo(this)">
+        <option value="ll">🪝 Línea larga (carga externa)</option>
+        <option value="interna">📦 Carga interna / equipaje</option>
+        <option value="pax">👤 Pasajeros</option>
+        <option value="mixto">👤📦 Mixto (pax + carga interna)</option>
+        <option value="ferri">↗ Ferri / posicionamiento</option>
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px">
+      <div class="v-campo-ll">
+        <div class="frow" style="margin-bottom:0"><label>Línea larga (kg)</label><input type="number" class="v-ll" placeholder="0" min="0" step="1"></div>
+      </div>
+      <div class="v-campo-ci" style="display:none">
+        <div class="frow" style="margin-bottom:0"><label>Carga interna / equipaje (kg)</label><input type="number" class="v-carga" placeholder="0" min="0" step="1"></div>
+      </div>
+      <div class="v-campo-pax" style="display:none">
+        <div class="frow" style="margin-bottom:0"><label>Pasajeros</label><input type="number" class="v-pax" placeholder="0" min="0" step="1"></div>
+      </div>
+    </div>
+    <div class="frow" style="margin-bottom:0"><label>Tanqueo en este vuelo (gls)</label><input type="number" class="v-gls" placeholder="0" min="0" onchange="validarGLSIndividual(this)"></div>
+    <div class="v-traslado-comb" style="margin-top:9px;padding:9px;background:var(--card2);border:1px solid var(--border);border-radius:8px;display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:12px;color:var(--accent);font-weight:600">⛽ Traslado de combustible en bidones</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="frow" style="margin-bottom:0"><label>Base origen</label>
+          <select class="v-tcomb-origen" style="width:100%">
+            <option value="Mutatá">Mutatá</option>
+            <option value="Frontino">Frontino</option>
+            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp La Rica">Camp La Rica</option>
+          </select>
+        </div>
+        <div class="frow" style="margin-bottom:0"><label>Base destino</label>
+          <select class="v-tcomb-destino" style="width:100%">
+            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp La Rica">Camp La Rica</option>
+            <option value="Frontino">Frontino</option>
+            <option value="Mutatá">Mutatá</option>
+          </select>
+        </div>
+      </div>
+      <div class="frow" style="margin-bottom:0;margin-top:8px"><label>GLS trasladados en bidones</label>
+        <input type="number" class="v-tcomb-gls" placeholder="0" min="0" step="1">
+      </div>
+    </div>
+    <div class="frow" style="margin-bottom:0;margin-top:6px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--muted)">
+        <input type="checkbox" class="v-tiene-traslado" onchange="toggleTrasladoComb(this)" style="width:16px;height:16px;cursor:pointer">
+        Esta carga incluye combustible en bidones
+      </label>
+    </div>`;
+  el.appendChild(div);
+  var wIni = div.querySelector('.v-ini-wrap');
+  var wFin = div.querySelector('.v-fin-wrap');
+  if (wIni) wIni.innerHTML = crearSelectorHora('', 'v-ini', '', '');
+  if (wFin) wFin.innerHTML = crearSelectorHora('', 'v-fin', '', '');
+  actualizarCamposVuelo(div.querySelector('.v-tipo'));
+}
+
 function actualizarMatBloque(sel, matId) {
   // Lista completa — no filtra por aeronave
   var match = sel.id ? sel.id.match(/^b(\d+)-heli$/) : null;
@@ -4671,11 +4832,9 @@ function actualizarMatBloque(sel, matId) {
       ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'].map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
   }
 }function guardarBloque(n) {
-  const heliVal   = document.getElementById('b'+n+'-heli').value;
+  const heliVal = document.getElementById('b'+n+'-heli').value;
   if (!heliVal) { mostrarToast('Selecciona el helicóptero adicional','err'); return; }
-
   const [heli, mat] = heliVal.split('|');
-  const proyecto  = (document.getElementById('b'+n+'-proyecto') || {value:''}).value;
   const base      = document.getElementById('b'+n+'-base').value;
   const piloto    = document.getElementById('b'+n+'-piloto').value.trim();
   if (!piloto) {
@@ -4689,102 +4848,126 @@ function actualizarMatBloque(sel, matId) {
   const copiloto  = (document.getElementById('b'+n+'-copiloto') || {value:'N/A'}).value;
   const instructor= (document.getElementById('b'+n+'-instructor') || {value:'N/A'}).value;
   const dutyOut   = getTimeValue('b'+n+'-dout');
-  const progB     = parseInt((document.getElementById('b'+n+'-prog') || {value:0}).value)||0;
-  const cumplB    = parseInt((document.getElementById('b'+n+'-cumpl') || {value:0}).value)||0;
   const estadoDiaB= (document.getElementById('b'+n+'-estado') || {value:'OPERÓ'}).value;
-  const gls       = parseFloat(document.getElementById('b'+n+'-gls').value)||0;
-  const obs       = document.getElementById('b'+n+'-obs').value.trim();
-  const osB       = (document.getElementById('b'+n+'-os') || {value:''}).value.trim();
+  const gls       = parseFloat((document.getElementById('b'+n+'-gls') || {value:0}).value)||0;
+  const obs       = (document.getElementById('b'+n+'-obs') || {value:''}).value.trim();
+  const keyStr    = cur.toISOString().slice(0,10);
 
-  const items = document.querySelectorAll('#b'+n+'-vuelos-list .vuelo-item');
-  if (!items.length) { mostrarToast('Agrega al menos un vuelo','err'); return; }
+  // ── Leer tareas del bloque extra ──────────────────────────────────
+  const tareaEls = document.querySelectorAll('#b'+n+'-tareas-list > div[id^="btarea-'+n+'-"]');
+  if (!tareaEls.length) { mostrarToast('Agrega al menos una tarea de vuelo','err'); return; }
 
-  const vuelos = [];
-  items.forEach(item => {
-    const ini = getTimeClass(item, 'v-ini');
-    const fin = getTimeClass(item, 'v-fin');
-    if (!ini || !fin) return;
-    let diffMB = (fin.split(':').reduce((a,v,i)=>a+(i?+v:+v*60),0)) -
-                  (ini.split(':').reduce((a,v,i)=>a+(i?+v:+v*60),0));
-    if (diffMB < 0 && Math.abs(diffMB) <= 240) { diffMB += 24*60; }
-    else if (diffMB < 0) { diffMB = 0; }
-    vuelos.push({
-      ini, fin,
-      hrs: Math.round(diffMB/60*100)/100,
-      pax:   parseInt(item.querySelector('.v-pax')?.value)||0,
-      ll:    parseInt(item.querySelector('.v-ll')?.value)||0,
-      carga: parseInt(item.querySelector('.v-carga')?.value)||0,
-      gls:   parseFloat(item.querySelector('.v-gls')?.value)||0,
-      fuel_loc: item.querySelector('.v-base')?.value || base,
-      tipo: item.querySelector('.v-tipo')?.value || 'll',
-      traslado_comb: item.querySelector('.v-tiene-traslado')?.checked ? {
-        origen: item.querySelector('.v-tcomb-origen')?.value || '',
-        destino: item.querySelector('.v-tcomb-destino')?.value || '',
-        gls: parseFloat(item.querySelector('.v-tcomb-gls')?.value)||0
-      } : null
+  function leerVuelosBloque(contenedor) {
+    const items = contenedor.querySelectorAll('.vuelo-item');
+    const vuelos = [];
+    items.forEach(item => {
+      const ini = getTimeClass(item, 'v-ini');
+      const fin = getTimeClass(item, 'v-fin');
+      if (!ini || !fin) return;
+      const [ih,im] = ini.split(':').map(Number);
+      const [fh,fm] = fin.split(':').map(Number);
+      let diffM = (fh*60+fm) - (ih*60+im);
+      if (diffM < 0 && Math.abs(diffM) <= 240) diffM += 24*60;
+      else if (diffM < 0) diffM = 0;
+      vuelos.push({
+        ini, fin, hrs: Math.round(diffM/60*100)/100,
+        origen: item.querySelector('.v-origen')?.value || '',
+        pax:   parseInt(item.querySelector('.v-pax')?.value)||0,
+        ll:    parseInt(item.querySelector('.v-ll')?.value)||0,
+        carga: parseInt(item.querySelector('.v-carga')?.value)||0,
+        gls:   parseFloat(item.querySelector('.v-gls')?.value)||0,
+        base:  item.querySelector('.v-base')?.value || base,
+        fuel_loc: item.querySelector('.v-base')?.value || base,
+        tipo:  item.querySelector('.v-tipo')?.value || 'll',
+        traslado_comb: item.querySelector('.v-tiene-traslado')?.checked ? {
+          origen:  item.querySelector('.v-tcomb-origen')?.value || '',
+          destino: item.querySelector('.v-tcomb-destino')?.value || '',
+          gls:     parseFloat(item.querySelector('.v-tcomb-gls')?.value)||0
+        } : null
+      });
     });
-  });
-
-  if (!vuelos.length) { mostrarToast('Revisa los horarios de los vuelos','err'); return; }
-
-  const keyStr = cur.toISOString().slice(0,10);
-  if (!STORE[keyStr]) STORE[keyStr] = {registros:[]};
-
-  const reg = { heli, mat, base, proyecto, piloto, copiloto, instructor,
-                os: osB,
-                dutyIn, dutyOut, vuelos, gls, tank:0,
-                prog: progB || vuelos.length, cumpl: cumplB || vuelos.length,
-                estadoDia: estadoDiaB, causas:[], hTier:0, obs };
-
-  STORE[keyStr].registros.push(reg);
-  localStorage.setItem('opsdata', JSON.stringify(STORE));
-
-  // ── Descontar GLS del tanque automáticamente ──
-  const glsVuelosB = (vuelos || []).reduce((a, v) => a + (v.gls || 0), 0);
-  const glsTotalB = (gls || 0) + glsVuelosB;
-  if (glsTotalB > 0 && base && FUEL_NIVEL[base] !== undefined) {
-    const despues = Math.max(0, FUEL_NIVEL[base] - glsTotalB);
-    FUEL_NIVEL[base] = despues;
-    localStorage.setItem('fuel_nivel_inicial', JSON.stringify(FUEL_NIVEL));
-
-    FUEL_ENTRADAS.unshift({
-      fecha: dkey(new Date()),
-      hora:  new Date().toTimeString().slice(0,5),
-      base,
-      gls:   -gls,
-      ref:   `${heli} · ${mat} — consumo operacional`,
-      tipo:  'consumo'
-    });
-
-    const cap = CAPS[base] || 9999;
-    const pct = Math.round(despues / cap * 100);
-    if (pct <= 20) {
-      setTimeout(() => {
-        const t = document.getElementById('toast-el');
-        t.style.background = '#ff2233'; t.style.color = '#fff';
-        t.textContent = `🔴 ${base}: nivel CRÍTICO ${pct}% — reabastecimiento urgente`;
-        t.classList.add('show');
-        setTimeout(() => { t.classList.remove('show'); t.style.background=''; t.style.color=''; }, 6000);
-      }, 1200);
-    } else if (pct <= 30) {
-      setTimeout(() => {
-        const t = document.getElementById('toast-el');
-        t.style.background = '#ff7733'; t.style.color = '#fff';
-        t.textContent = `🟠 ${base}: nivel en alerta ${pct}% — planificar reabastecimiento`;
-        t.classList.add('show');
-        setTimeout(() => { t.classList.remove('show'); t.style.background=''; t.style.color=''; }, 5000);
-      }, 1200);
-    }
+    return vuelos;
   }
 
-  // Enviar a Sheets
-  enviarASheets(construirPayloadVuelo(reg, keyStr));
-  mostrarToast('✅ Helicóptero #'+n+' guardado','ok');
+  if (!STORE[keyStr]) STORE[keyStr] = {registros:[]};
+  const registrosGuardados = [];
 
-  // Colapsar el bloque visualmente
+  tareaEls.forEach(tareaEl => {
+    const ids = tareaEl.id.replace('btarea-'+n+'-', '');
+    const tn = ids;
+    const pfx = 'bt-'+n+'-'+tn+'-';
+    const os         = (document.getElementById(pfx+'os')       || {value:''}).value.trim();
+    const proyectoT  = (document.getElementById(pfx+'proyecto') || {value:''}).value ||
+                       (document.getElementById('b'+n+'-proyecto') || {value:''}).value;
+    const glsTarea   = parseFloat((document.getElementById(pfx+'gls')  || {value:0}).value)||0;
+    const prog       = parseInt((document.getElementById(pfx+'prog') || {value:0}).value)||0;
+    const cumpl      = parseInt((document.getElementById(pfx+'cumpl')|| {value:0}).value)||0;
+    const vuelos     = leerVuelosBloque(tareaEl);
+    if (!vuelos.length) return;
+
+    const reg = {
+      heli, mat, os,
+      proyecto: proyectoT, base, piloto, copiloto, instructor,
+      dutyIn, dutyOut, vuelos,
+      gls: glsTarea, prog, cumpl,
+      estadoDia: estadoDiaB, causas:[], hTier:0, obs
+    };
+
+    STORE[keyStr].registros.push(reg);
+    enviarASheets(construirPayloadVuelo(reg, keyStr));
+    registrosGuardados.push(reg);
+
+    // ── Descontar GLS del tanque ─────────────────────────────────────
+    const glsVuelos = vuelos.reduce((a,v)=>a+(v.gls||0),0);
+    const glsConsumidos = glsTarea + glsVuelos;
+    if (glsConsumidos > 0 && base && FUEL_NIVEL[base] !== undefined) {
+      const antes   = FUEL_NIVEL[base];
+      const despues = Math.max(0, antes - glsConsumidos);
+      FUEL_NIVEL[base] = despues;
+      localStorage.setItem('fuel_nivel_inicial', JSON.stringify(FUEL_NIVEL));
+      FUEL_ENTRADAS.unshift({
+        fecha: dkey(new Date()), hora: new Date().toTimeString().slice(0,5),
+        base, gls: -glsTarea,
+        ref: `${heli} · ${mat} — consumo operacional`, tipo: 'consumo'
+      });
+      const cap = CAPS[base] || 9999;
+      const pct = Math.round(despues / cap * 100);
+      if (pct <= 20) {
+        setTimeout(() => {
+          const t = document.getElementById('toast-el');
+          t.style.background='#ff2233'; t.style.color='#fff';
+          t.textContent=`🔴 ${base}: nivel CRÍTICO ${pct}% — reabastecimiento urgente`;
+          t.classList.add('show');
+          setTimeout(()=>{ t.classList.remove('show'); t.style.background=''; t.style.color=''; },6000);
+        }, 1200);
+      } else if (pct <= 30) {
+        setTimeout(() => {
+          const t = document.getElementById('toast-el');
+          t.style.background='#ff7733'; t.style.color='#fff';
+          t.textContent=`🟠 ${base}: nivel en alerta ${pct}% — planificar reabastecimiento`;
+          t.classList.add('show');
+          setTimeout(()=>{ t.classList.remove('show'); t.style.background=''; t.style.color=''; },5000);
+        }, 1200);
+      }
+    }
+  });
+
+  // GLS general del bloque (si aplica, no duplicado por vuelo)
+  if (gls > 0 && base && FUEL_NIVEL[base] !== undefined) {
+    const antes = FUEL_NIVEL[base];
+    const despues = Math.max(0, antes - gls);
+    FUEL_NIVEL[base] = despues;
+    localStorage.setItem('fuel_nivel_inicial', JSON.stringify(FUEL_NIVEL));
+  }
+
+  if (!registrosGuardados.length) {
+    mostrarToast('Cada tarea necesita al menos un vuelo con horario','err'); return;
+  }
+  localStorage.setItem('opsdata', JSON.stringify(STORE));
+  mostrarToast('✅ Helicóptero #'+n+' — '+registrosGuardados.length+' tarea(s) guardada(s)','ok');
+
   document.getElementById('bloque-'+n).style.opacity = '0.5';
   document.getElementById('bloque-'+n).style.pointerEvents = 'none';
-
   renderDashboard();
 }
 
