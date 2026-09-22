@@ -625,7 +625,6 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
           </optgroup>
           <optgroup label="BK117">
             <option value="BK117|HK-5015">BK117 · HK-5015</option>
-            <option value="BK117|HK-5137">BK117 · HK-5137</option>
           </optgroup>
           <optgroup label="Bell 206 (relevo)">
             <option value="BELL 206L3|HK-4348">Bell 206L3 · HK-4348</option>
@@ -1225,7 +1224,7 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
       <div class="legend-dot" style="background:#e53e3e"></div>
       <div class="legend-text">
         <div class="legend-label">Bell 412 — HK-4767 / HK-4680</div>
-        <div class="legend-desc">Helicóptero pesado bimotora · Crew (piloto + copiloto) · Capacidad ~13 pax o ~1.800 kg cabina · Pilotos: Hodek, Bernal, Maldonado, Lara, Ibañez, Delgado · Copilotos: Cristancho, Fierro, Fonseca, Rivera · Instructores: Lara, Berbesi</div>
+        <div class="legend-desc">Helicóptero pesado bimotora · Crew (piloto + copiloto) · Capacidad ~13 pax o ~1.800 kg cabina · Pilotos: Hodek, Bernal, Maldonado, Lara, Ibañez, Delgado · Copilotos: Cristancho, Fierro, Fonseca, Rivera, Antolinez · Instructores: Lara, Berbesi</div>
       </div>
     </div>
     <div class="legend-item">
@@ -1238,7 +1237,7 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
     <div class="legend-item">
       <div class="legend-dot" style="background:#d69e2e"></div>
       <div class="legend-text">
-        <div class="legend-label">BK117 — HK-5015 / HK-5105 / HK-5137</div>
+        <div class="legend-label">BK117 — HK-5015 / HK-5105</div>
         <div class="legend-desc">Helicóptero mediano bimotora · Single pilot · Pilotos: Lopez, Acosta</div>
       </div>
     </div>
@@ -2941,7 +2940,7 @@ let vCount = 0;
 const PILOTOS = {
   'KOALA':      { pilotos: ['Cruz','Zuñiga','Murcia'],                                                                        copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
   'BK117':      { pilotos: ['Lopez','Acosta'],                                                                                copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
-  'BELL 412':   { pilotos: ['Hodek','Bernal','Maldonado','Lara','Ibañez','Delgado'],                                         copilotos: ['Cristancho','Fierro','Fonseca','Rivera'],   instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
+  'BELL 412':   { pilotos: ['Hodek','Bernal','Maldonado','Lara','Ibañez','Delgado'],                                         copilotos: ['Cristancho','Fierro','Fonseca','Rivera','Antolinez'],   instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
   'BELL 206L3': { pilotos: ['Cruz','Zuñiga','Murcia','Lopez','Acosta'],                                                       copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
   'BELL 206L4': { pilotos: ['Cruz','Zuñiga','Murcia','Lopez','Acosta'],                                                       copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
 };
@@ -3860,6 +3859,14 @@ document.addEventListener('change', e => {
     }
   }
 
+  function calcHrsDuty(din, dout) {
+    if (!din || !dout) return '';
+    var pIn  = din.split(':').map(Number);
+    var pOut = dout.split(':').map(Number);
+    var mins = (pOut[0] * 60 + pOut[1]) - (pIn[0] * 60 + pIn[1]);
+    return mins > 0 ? Math.round(mins / 60 * 100) / 100 : '';
+  }
+
   function construirPayloadVuelo(registro, fecha) {
     return {
       tipo:      "vuelo",
@@ -3872,6 +3879,7 @@ document.addEventListener('change', e => {
       os:        registro.os || '',
       dutyIn:    registro.dutyIn,
       dutyOut:   registro.dutyOut,
+      hrsDuty:   calcHrsDuty(registro.dutyIn, registro.dutyOut),
       vuelos:    registro.vuelos,
       gls:       registro.gls,
       tank:      registro.tank,
@@ -4359,7 +4367,6 @@ function agregarBloqueHeli() {
               </optgroup>
               <optgroup label="BK117">
                 <option value="BK117|HK-5015">BK117 · HK-5015</option>
-                <option value="BK117|HK-5137">BK117 · HK-5137</option>
               </optgroup>
               <optgroup label="Bell 206 (relevo)">
                 <option value="BELL 206L3|HK-4348">Bell 206L3 · HK-4348</option>
