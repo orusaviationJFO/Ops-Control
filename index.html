@@ -522,7 +522,7 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
 
 <!-- DASHBOARD -->
 <div class="view active" id="view-dashboard">
-<div style="text-align:right;padding:2px 14px 0;"><span id="soa-badge" onclick="cambiarNombreSOA()" style="font-size:11px;color:var(--muted);font-family:var(--mono);cursor:pointer;margin-right:12px" title="Clic para cambiar tu nombre">👤 Sin identificar</span><span id="gs-sync-badge" style="font-size:10px;color:var(--muted);font-family:var(--mono);cursor:pointer" onclick="syncConGS()" title="Toca para sincronizar">⬤ GS --:--</span></div>
+<div style="text-align:right;padding:2px 14px 0;"><span id="soa-badge" onclick="cambiarNombreSOA()" style="font-size:11px;color:var(--muted);font-family:var(--mono);cursor:pointer;margin-right:12px" title="Clic para cambiar tu nombre">👤 Sin identificar</span><span id="gs-sync-badge" style="font-size:10px;color:var(--muted);font-family:var(--mono);cursor:pointer" onclick="syncConGS()" title="Toca para sincronizar">⬤ GS --:--</span><span id="gs-pending-badge" onclick="_retryPending()" style="display:none;font-size:10px;color:#c53030;font-family:var(--mono);cursor:pointer;margin-left:8px;background:rgba(229,62,62,0.1);padding:2px 7px;border-radius:10px;border:1px solid rgba(229,62,62,0.3)" title="Registros pendientes — toca para reintentar envío a GS"></span></div>
 
   <!-- ① HORAS TOTALES MES — Hero card -->
   <div style="background:linear-gradient(135deg,#e53e3e,#c53030);border-radius:14px;padding:16px 18px;margin-bottom:12px">
@@ -3844,20 +3844,95 @@ document.addEventListener('change', e => {
   // ── GOOGLE SHEETS INTEGRATION ─────────────────────────────
   const GS_URL = "https://script.google.com/macros/s/AKfycbz2yyrh6Ek8i1fFRkBEnRtNHbjZguwlhmCOkw-wuWgzzZT2p7BLsdXXvEQC9wIaos_S/exec"; // ← pegar URL del Apps Script aquí
 
-  async function enviarASheets(payload) {
-    if (!GS_URL || GS_URL === "PEGAR_URL_AQUI") return; // no configurado
+  // ── Cola de reintentos para POSTs a GS (v5.20) ──────────────────
+  // Problema anterior: mode:"no-cors" → respuesta opaca → errores de GS invisibles
+  // → registros perdidos silenciosamente cuando GS devolvía 503/timeout.
+  // Solución: desde HTTPS usar mode:"cors" + Content-Type:"text/plain"
+  //   • text/plain = "simple request" CORS → sin preflight OPTIONS → Apps Script lo acepta
+  //   • Podemos leer la respuesta y confirmar {ok:true} antes de desencolar
+  // Cola persistida en localStorage → sobrevive recargas de página
+  var _gsPending = (function(){
+    try { var s=localStorage.getItem('_gsPending'); return s?JSON.parse(s):[]; } catch(e){ return []; }
+  })();
+  function _savePending(){ try{ localStorage.setItem('_gsPending',JSON.stringify(_gsPending)); }catch(e){} }
+  function _updatePendingBadge(){
+    var b=document.getElementById('gs-pending-badge');
+    if(!b) return;
+    if(_gsPending.length>0){
+      b.textContent='⚠ '+_gsPending.length+' pendiente'+(+_gsPending.length>1?'s':'');
+      b.style.display='inline';
+    } else { b.style.display='none'; }
+  }
+
+  async function _enviarItem(item) {
+    if (!GS_URL || GS_URL === "PEGAR_URL_AQUI") return;
+    item.intentos = (item.intentos||0)+1;
+    var isHttps = window.location.protocol === 'https:';
     try {
-      await fetch(GS_URL, {
-        method: "POST",
-        mode: "no-cors", // necesario para Apps Script
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      console.log("✓ Enviado a Google Sheets:", payload.tipo, payload.fecha);
+      if (isHttps) {
+        // HTTPS (GitHub Pages): cors + text/plain → simple request, sin preflight, podemos leer respuesta
+        var resp = await fetch(GS_URL, {
+          method: "POST", mode: "cors", redirect: "follow",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify(item.payload)
+        });
+        if (resp.ok) {
+          var data = await resp.json().catch(function(){ return {ok:true}; });
+          if (data.ok !== false) {
+            var idx = _gsPending.findIndex(function(q){ return q.id===item.id; });
+            if (idx !== -1) _gsPending.splice(idx,1);
+            _savePending(); _updatePendingBadge();
+            console.log("✓ Confirmado en GS:", item.payload.tipo, item.payload.fecha);
+            return true;
+          }
+        }
+        console.warn("⚠ GS rechazó registro — queda en cola:", item.payload.tipo, item.payload.fecha);
+        return false;
+      } else {
+        // file:// → no-cors (comportamiento previo; sin confirmación)
+        await fetch(GS_URL, {
+          method: "POST", mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(item.payload)
+        });
+        var idx = _gsPending.findIndex(function(q){ return q.id===item.id; });
+        if (idx !== -1) _gsPending.splice(idx,1);
+        _savePending(); _updatePendingBadge();
+        console.log("✓ Enviado (no-cors):", item.payload.tipo, item.payload.fecha);
+        return true;
+      }
     } catch(err) {
-      console.warn("⚠ Error enviando a Sheets:", err);
+      console.warn("⚠ Error enviando a GS:", err, "— queda en cola para reintento");
+      return false;
     }
   }
+
+  async function enviarASheets(payload) {
+    if (!GS_URL || GS_URL === "PEGAR_URL_AQUI") return;
+    var item = { id: Date.now()+'_'+Math.random().toString(36).slice(2,7),
+                 payload: payload, intentos: 0, ts: new Date().toISOString() };
+    _gsPending.push(item); _savePending(); _updatePendingBadge();
+    await _enviarItem(item);
+  }
+
+  async function _retryPending() {
+    if (!_gsPending.length || !GS_URL || GS_URL==="PEGAR_URL_AQUI") return;
+    var items = _gsPending.slice(); // copia; la cola puede cambiar durante el bucle
+    for (var i=0; i<items.length; i++) {
+      var it = items[i];
+      if (it.intentos >= 12) {
+        mostrarToast('⚠ Registro del '+it.payload.fecha+' no pudo enviarse después de '+it.intentos+' intentos','err');
+        var idx = _gsPending.findIndex(function(q){ return q.id===it.id; });
+        if (idx !== -1) _gsPending.splice(idx,1); _savePending(); _updatePendingBadge();
+        continue;
+      }
+      await _enviarItem(it);
+      await new Promise(function(r){ setTimeout(r,600); }); // espacio entre reintentos
+    }
+  }
+  // Reintentar pendientes al cargar y cada 5 min
+  setTimeout(_retryPending, 3000);
+  setInterval(_retryPending, 5*60*1000);
 
   function calcHrsDuty(din, dout) {
     if (!din || !dout) return '';
@@ -4386,8 +4461,9 @@ function agregarBloqueHeli() {
             </select>
           </div>
         </div>
-        <div class="frow"><label>Base de operación</label>
-          <select id="b${n}-base">
+        <div class="frow"><label>Base de operación <span style="color:var(--red)">*</span></label>
+          <select id="b${n}-base" style="border:1px solid var(--red)" onchange="this.style.border=this.value?'1px solid var(--green)':'1px solid var(--red)'">
+            <option value="">— seleccionar base * obligatorio —</option>
             <option value="Frontino">Frontino</option>
             <option value="Mutatá">Mutatá</option>
             <option value="Quibdó">Quibdó</option>
@@ -4843,6 +4919,12 @@ function actualizarMatBloque(sel, matId) {
   if (!heliVal) { mostrarToast('Selecciona el helicóptero adicional','err'); return; }
   const [heli, mat] = heliVal.split('|');
   const base      = document.getElementById('b'+n+'-base').value;
+  if (!base) {
+    mostrarToast('⚠️ Selecciona la base de operación — campo obligatorio','err');
+    const selBase = document.getElementById('b'+n+'-base');
+    if (selBase) { selBase.style.border='2px solid var(--red)'; selBase.focus(); setTimeout(()=>{ selBase.style.border='1px solid var(--red)'; },3000); }
+    return;
+  }
   const piloto    = document.getElementById('b'+n+'-piloto').value.trim();
   if (!piloto) {
     mostrarToast('⚠️ Selecciona el piloto — campo obligatorio','err');
