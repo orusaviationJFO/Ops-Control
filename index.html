@@ -3854,6 +3854,7 @@ document.addEventListener('change', e => {
   var _gsPending = (function(){
     try { var s=localStorage.getItem('_gsPending'); return s?JSON.parse(s):[]; } catch(e){ return []; }
   })();
+  var _inFlight = new Set(); // IDs actualmente en vuelo — evita envíos paralelos del mismo ítem
   function _savePending(){ try{ localStorage.setItem('_gsPending',JSON.stringify(_gsPending)); }catch(e){} }
   function _updatePendingBadge(){
     var b=document.getElementById('gs-pending-badge');
