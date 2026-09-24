@@ -1,3 +1,10 @@
+<!-- ============================================================
+     Control_helicopteros.html  —  v32
+     Generado: 2026-09-23 21:16 COT
+     Cambios v32: lock cross-tab en localStorage (_gsInFlight)
+                  para evitar envíos duplicados entre pestañas;
+                  filtro de edad _retryPending ampliado a 45 s.
+     ============================================================ -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -3278,7 +3285,12 @@ function toggleTrasladoComb(cb) {
   if (panel) panel.style.display = cb.checked ? 'block' : 'none';
 }
 
+var _guardando = false;
 function guardarRegistro() {
+  if (_guardando) { mostrarToast('⚠ Ya se está guardando, espera un momento…', 'err'); return; }
+  _guardando = true;
+  // Auto-reset en 6 s por si una validación temprana hace return antes de llegar al final
+  var _gtimer = setTimeout(function(){ _guardando = false; }, 6000);
   const heliVal = document.getElementById('f-heli').value;
   const msg = document.getElementById('form-msg');
   if (!heliVal) { msg.style.color='var(--red)'; msg.textContent='Selecciona el helicóptero'; return; }
@@ -3438,6 +3450,7 @@ function guardarRegistro() {
   }
 
   localStorage.setItem('opsdata', JSON.stringify(STORE));
+  clearTimeout(_gtimer); _guardando = false; // liberar guard — registro enviado correctamente
   mostrarToast(`✅ ${registrosGuardados.length} tarea(s) guardada(s)`,'ok');
 
   // Reset form
@@ -3867,6 +3880,19 @@ document.addEventListener('change', e => {
 
   async function _enviarItem(item) {
     if (!GS_URL || GS_URL === "PEGAR_URL_AQUI") return;
+    // Guard 1: Set en memoria — evita envíos paralelos en la MISMA pestaña
+    if (_inFlight.has(item.id)) { console.log("⏸ en vuelo (misma pestaña):", item.id); return false; }
+    // Guard 2: localStorage — evita envíos paralelos entre PESTAÑAS / recargas de página
+    try {
+      var _lks = JSON.parse(localStorage.getItem('_gsInFlight') || '{}');
+      var _ms  = Date.now();
+      // Limpiar locks abandonados de más de 120 s (pestaña cerrada bruscamente, etc.)
+      Object.keys(_lks).forEach(function(k){ if (_ms - _lks[k] > 120000) delete _lks[k]; });
+      if (_lks[item.id]) { console.log("⏸ en vuelo (otra pestaña):", item.id); return false; }
+      _lks[item.id] = _ms;
+      localStorage.setItem('_gsInFlight', JSON.stringify(_lks));
+    } catch(e) {}
+    _inFlight.add(item.id);
     item.intentos = (item.intentos||0)+1;
     var isHttps = window.location.protocol === 'https:';
     try {
@@ -3905,6 +3931,14 @@ document.addEventListener('change', e => {
     } catch(err) {
       console.warn("⚠ Error enviando a GS:", err, "— queda en cola para reintento");
       return false;
+    } finally {
+      // Liberar AMBOS guards con o sin éxito
+      _inFlight.delete(item.id);
+      try {
+        var _lks2 = JSON.parse(localStorage.getItem('_gsInFlight') || '{}');
+        delete _lks2[item.id];
+        localStorage.setItem('_gsInFlight', JSON.stringify(_lks2));
+      } catch(e) {}
     }
   }
 
@@ -3918,7 +3952,13 @@ document.addEventListener('change', e => {
 
   async function _retryPending() {
     if (!_gsPending.length || !GS_URL || GS_URL==="PEGAR_URL_AQUI") return;
-    var items = _gsPending.slice(); // copia; la cola puede cambiar durante el bucle
+    var now = Date.now();
+    // Solo reintentar: (a) ítems con >45 s de antigüedad y (b) que no estén ya en vuelo
+    // (45 s da tiempo al send inicial, incluso con cold-start de GAS)
+    var items = _gsPending.filter(function(it) {
+      return !_inFlight.has(it.id) && (now - new Date(it.ts).getTime()) > 45000;
+    });
+    if (!items.length) return;
     for (var i=0; i<items.length; i++) {
       var it = items[i];
       if (it.intentos >= 12) {
