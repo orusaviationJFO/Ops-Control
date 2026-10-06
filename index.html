@@ -1,6 +1,16 @@
 <!-- ============================================================
-     Control_helicopteros.html  —  v33
+     Control_helicopteros.html  —  v35
      Generado: 2026-10-06 COT
+     Cambios v35: traslados en bidones y reab. campo se auto-registran
+                  en el campo Observaciones del vuelo — quedan visibles
+                  en bitácora (📝) y en columna Observaciones del GS,
+                  sin depender de que el SOA escriba el comentario.
+     Cambios v34: formulario independiente "Despacho desde tanque
+                  satélite" en sección Combustible — permite que
+                  cualquier SOA registre un despacho a cualquier
+                  aeronave sin necesidad de tarea de vuelo abierta;
+                  descuenta en tiempo real del tanque satélite
+                  indicado y guarda snapshot en NivelCombustible.
      Cambios v33: nuevo campo opcional "Reabastecimiento en campo"
                   en cada vuelo del formulario — permite registrar
                   cuando la aeronave tanquea desde un tanque satélite
@@ -1335,6 +1345,45 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
   <button onclick="registrarCombustible()" class="btn-save">Registrar reabastecimiento</button>
   <div id="fc-msg" style="text-align:center;font-size:12px;color:var(--muted);min-height:20px;margin-top:6px"></div>
 
+  <!-- Formulario: despacho desde tanque satélite -->
+  <div class="fcard" style="margin-top:12px;border:1px solid rgba(245,158,11,0.4);background:rgba(245,158,11,0.05)">
+    <div class="fsec" style="color:#f59e0b">⛽ Despacho desde tanque satélite</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6">
+      Usa este formulario cuando una aeronave tanqueó desde un tanque en campo (La Rica, Pantanos, Frontino) y no hay tarea de vuelo abierta para registrarlo. El consumo se descuenta del tanque satélite indicado.
+    </div>
+    <div class="f2">
+      <div class="frow"><label>Tanque satélite</label>
+        <select id="fd-base">
+          <option value="Camp La Rica">Camp La Rica</option>
+          <option value="Camp Pantanos">Camp Pantanos</option>
+          <option value="Frontino">Frontino</option>
+        </select>
+      </div>
+      <div class="frow"><label>GLS despachados</label>
+        <input type="number" id="fd-gls" placeholder="0" min="0" step="0.1">
+      </div>
+      <div class="frow"><label>Aeronave que recibió</label>
+        <select id="fd-heli">
+          <option value="BELL 412">BELL 412 · HK-5459</option>
+          <option value="KOALA">KOALA · HK-5444</option>
+          <option value="BK117">BK117 · HK-5015</option>
+          <option value="BELL 206L3">BELL 206L3 · HK-4348</option>
+          <option value="BELL 206L4">BELL 206L4 · HK-4485</option>
+          <option value="BELL 206L4">BELL 206L4 · HK-4653</option>
+          <option value="BELL 206L4">BELL 206L4 · HK-5454</option>
+        </select>
+      </div>
+      <div class="frow"><label>Hora despacho</label>
+        <span id="fd-hora-wrap" style="display:inline-block"></span>
+      </div>
+    </div>
+    <div class="frow" style="margin-bottom:0"><label>Observaciones</label>
+      <input type="text" id="fd-obs" placeholder="Ej: Apoyo operación interna taladro PA-3">
+    </div>
+  </div>
+  <button onclick="registrarDespachoSatelite()" class="btn-save" style="background:linear-gradient(135deg,#d97706,#b45309)">⛽ Registrar despacho satélite</button>
+  <div id="fd-msg" style="text-align:center;font-size:12px;color:var(--muted);min-height:20px;margin-top:6px"></div>
+
   <!-- Historial de movimientos -->
   <div class="sec" style="margin-top:20px">Historial de movimientos</div>
   <div id="fuel-log"></div>
@@ -1540,7 +1589,11 @@ function showTab(name,tab){
   }
   if(name === 'dashboard')   renderDashboard();
   if(name === 'totales')     renderTotals();
-  if(name === 'combustible') { renderNivelInicial(); renderCapInputs(); }
+  if(name === 'combustible') {
+    renderNivelInicial(); renderCapInputs();
+    var wFdHora = document.getElementById('fd-hora-wrap');
+    if (wFdHora && !wFdHora.innerHTML) wFdHora.innerHTML = crearSelectorHora('fd-hora', '', '', '');
+  }
 }
 // ── Dashboard — resumen acumulado mensual ──
 function renderDashboard(){
@@ -3427,6 +3480,18 @@ function guardarRegistro() {
     const vuelos  = leerVuelos(tareaEl, base);
     if (vuelos.length === 0) return;
 
+    // Construir observación automática de traslados y reab. campo
+    let obsBase = document.getElementById('f-obs').value.trim();
+    const trasladosStr = vuelos
+      .filter(v => v.traslado_comb && v.traslado_comb.gls > 0)
+      .map(v => `Traslado bidones: ${v.traslado_comb.gls} GLS ${v.traslado_comb.origen}→${v.traslado_comb.destino}`)
+      .join(' | ');
+    const reabStr = vuelos
+      .filter(v => v.reab_campo && v.reab_campo.gls > 0)
+      .map(v => `Reab. campo: ${v.reab_campo.gls} GLS desde ${v.reab_campo.base}`)
+      .join(' | ');
+    const obsAuto = [obsBase, trasladosStr, reabStr].filter(Boolean).join(' | ');
+
     const reg = {
       heli, mat,
       os,
@@ -3439,7 +3504,7 @@ function guardarRegistro() {
       vuelos,
       gls, prog, cumpl,
       estadoDia, causas, hTier,
-      obs: document.getElementById('f-obs').value,
+      obs: obsAuto,
       cambiosConfig: calcVuelos().cambiosConfig,
       briefingsOk:   [...document.querySelectorAll('#briefing-lista input:checked')].length
     };
@@ -3705,6 +3770,48 @@ function renderFuelTanks() {
       </div>`;
     el.appendChild(div);
   });
+}
+
+function registrarDespachoSatelite() {
+  const base = document.getElementById('fd-base').value;
+  const gls  = parseFloat(document.getElementById('fd-gls').value) || 0;
+  const heli = document.getElementById('fd-heli').value;
+  const hora = getTimeValue('fd-hora') || new Date().toTimeString().slice(0,5);
+  const obs  = document.getElementById('fd-obs').value.trim();
+  const msg  = document.getElementById('fd-msg');
+
+  if (!gls || gls <= 0) { msg.textContent = '⚠ Ingresa los GLS despachados'; msg.style.color='#e53e3e'; return; }
+
+  // Descontar del tanque satélite
+  if (FUEL_NIVEL[base] !== undefined) {
+    const antes   = FUEL_NIVEL[base];
+    const despues = Math.max(0, antes - gls);
+    FUEL_NIVEL[base] = despues;
+
+    // Enviar al GS — tipo combustible con consumo
+    const fecha = dkey(cur);
+    enviarASheets({
+      tipo: 'combustible', fecha, hora, base, heli, mat: '',
+      gls: 0, drenaje: 0, consumo: gls,
+      nivelAnt: Math.round(antes), nivelPost: Math.round(despues),
+      ref: `Despacho satélite → ${heli}`,
+      obs: obs || ''
+    });
+
+    // Snapshot niveles
+    enviarASheets({ tipo: 'nivel_combustible', fecha, hora,
+      niveles: Object.assign({}, FUEL_NIVEL), registradoPor: getNombreSOA() });
+
+    renderFuelTanks();
+    renderFuelLog();
+    msg.textContent = `✅ Despachados ${gls} GLS desde ${base} a ${heli}`;
+    msg.style.color = 'var(--green)';
+    document.getElementById('fd-gls').value = '';
+    document.getElementById('fd-obs').value = '';
+    setTimeout(() => { msg.textContent = ''; }, 4000);
+  } else {
+    msg.textContent = `⚠ Tanque ${base} no encontrado`; msg.style.color='#e53e3e';
+  }
 }
 
 function registrarCombustible() {
