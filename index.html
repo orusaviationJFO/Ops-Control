@@ -1,6 +1,16 @@
 <!-- ============================================================
-     Control_helicopteros.html  —  v32
-     Generado: 2026-09-23 21:16 COT
+     Control_helicopteros.html  —  v33
+     Generado: 2026-10-06 COT
+     Cambios v33: nuevo campo opcional "Reabastecimiento en campo"
+                  en cada vuelo del formulario — permite registrar
+                  cuando la aeronave tanquea desde un tanque satélite
+                  (Camp La Rica / Camp Pantanos / Frontino) en lugar
+                  del acopio principal de Mutatá; al activarlo, el
+                  sistema descuenta los GLS del tanque satélite
+                  indicado y no de Mutatá, eliminando duplicidad entre
+                  traslado de inventario y consumo real; la lógica de
+                  traslado en bidones ahora también actualiza los
+                  niveles de ambos tanques (origen y destino).
      Cambios v32: lock cross-tab en localStorage (_gsInFlight)
                   para evitar envíos duplicados entre pestañas;
                   filtro de edad _retryPending ampliado a 45 s.
@@ -3265,6 +3275,28 @@ function addVuelo(tareaNum) {
         <input type="checkbox" class="v-tiene-traslado" onchange="toggleTrasladoComb(this)" style="width:16px;height:16px;cursor:pointer">
         Esta carga incluye combustible en bidones
       </label>
+    </div>
+    <div class="v-reab-campo" style="margin-top:9px;padding:9px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:8px;display:none">
+      <div style="font-size:12px;color:#f59e0b;font-weight:600;margin-bottom:8px">⛽ Reabastecimiento en campo</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="frow" style="margin-bottom:0"><label>Tanque satélite</label>
+          <select class="v-reab-base" style="width:100%">
+            <option value="Camp La Rica">Camp La Rica</option>
+            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Frontino">Frontino</option>
+          </select>
+        </div>
+        <div class="frow" style="margin-bottom:0"><label>GLS despachados</label>
+          <input type="number" class="v-reab-gls" placeholder="0" min="0" step="1" style="width:100%">
+        </div>
+      </div>
+      <div style="font-size:11px;color:#92400e;margin-top:6px">⚠ Registra solo si la aeronave reabastecció desde un tanque satélite — no desde Mutatá</div>
+    </div>
+    <div class="frow" style="margin-bottom:0;margin-top:6px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#f59e0b">
+        <input type="checkbox" class="v-tiene-reab-campo" onchange="toggleReabCampo(this)" style="width:16px;height:16px;cursor:pointer">
+        Reabastecció desde tanque satélite (LR / PA / Frontino)
+      </label>
     </div>`;
   // Inicializar selectores de hora 24h — sin valor por defecto
   var wIni = div.querySelector('.v-ini-wrap');
@@ -3282,6 +3314,12 @@ function addVuelo(tareaNum) {
 function toggleTrasladoComb(cb) {
   const item = cb.closest('.vuelo-item');
   const panel = item.querySelector('.v-traslado-comb');
+  if (panel) panel.style.display = cb.checked ? 'block' : 'none';
+}
+
+function toggleReabCampo(cb) {
+  const item = cb.closest('.vuelo-item');
+  const panel = item.querySelector('.v-reab-campo');
   if (panel) panel.style.display = cb.checked ? 'block' : 'none';
 }
 
@@ -3350,6 +3388,10 @@ function guardarRegistro() {
           origen:  item.querySelector('.v-tcomb-origen')?.value || '',
           destino: item.querySelector('.v-tcomb-destino')?.value || '',
           gls:     parseFloat(item.querySelector('.v-tcomb-gls')?.value)||0
+        } : null,
+        reab_campo: item.querySelector('.v-tiene-reab-campo')?.checked ? {
+          base: item.querySelector('.v-reab-base')?.value || '',
+          gls:  parseFloat(item.querySelector('.v-reab-gls')?.value)||0
         } : null
       });
     });
@@ -3409,15 +3451,56 @@ function guardarRegistro() {
     // ── Descontar GLS del tanque ─────────────────────────────────────
     const glsVuelos = vuelos.reduce((a, v) => a + (v.gls || 0), 0);
     const glsConsumidos = gls + glsVuelos;
-    if (glsConsumidos > 0 && base && FUEL_NIVEL[base] !== undefined) {
+
+    // Traslados en bidones: mover inventario entre tanques
+    vuelos.forEach(v => {
+      if (v.traslado_comb && v.traslado_comb.gls > 0) {
+        const tOrig = v.traslado_comb.origen;
+        const tDest = v.traslado_comb.destino;
+        const tGls  = v.traslado_comb.gls;
+        if (FUEL_NIVEL[tOrig] !== undefined) FUEL_NIVEL[tOrig] = Math.max(0, FUEL_NIVEL[tOrig] - tGls);
+        if (FUEL_NIVEL[tDest] !== undefined) FUEL_NIVEL[tDest] = FUEL_NIVEL[tDest] + tGls;
+        enviarASheets({ tipo: 'nivel_combustible', fecha: keyStr,
+          hora: new Date().toTimeString().slice(0,5),
+          niveles: Object.assign({}, FUEL_NIVEL), registradoPor: 'Traslado bidones' });
+      }
+    });
+
+    // Reabastecimiento desde tanque satélite: descontar del satélite, no de Mutatá
+    const reabCampoVuelos = vuelos.filter(v => v.reab_campo && v.reab_campo.gls > 0);
+    if (reabCampoVuelos.length > 0) {
+      reabCampoVuelos.forEach(v => {
+        const rBase = v.reab_campo.base;
+        const rGls  = v.reab_campo.gls;
+        if (rBase && FUEL_NIVEL[rBase] !== undefined) {
+          const antesR  = FUEL_NIVEL[rBase];
+          const despuesR = Math.max(0, antesR - rGls);
+          FUEL_NIVEL[rBase] = despuesR;
+          enviarASheets({ tipo: 'combustible', fecha: keyStr,
+            hora: new Date().toTimeString().slice(0,5),
+            base: rBase, heli, mat, gls: 0, drenaje: 0, consumo: rGls,
+            nivelAnt: Math.round(antesR), nivelPost: Math.round(despuesR),
+            ref: `Consumo satélite ${rBase} — ${heli} OS:${os}`, obs: '' });
+        }
+      });
+      // Guardar snapshot niveles actualizado
+      enviarASheets({ tipo: 'nivel_combustible', fecha: keyStr,
+        hora: new Date().toTimeString().slice(0,5),
+        niveles: Object.assign({}, FUEL_NIVEL), registradoPor: 'Consumo satélite' });
+    }
+
+    // Consumo normal desde Mutatá (solo si no hubo reab_campo en todos los vuelos)
+    const glsReabCampo = reabCampoVuelos.reduce((a, v) => a + (v.reab_campo?.gls || 0), 0);
+    const glsDesdeAcopio = Math.max(0, glsConsumidos - glsReabCampo);
+    if (glsDesdeAcopio > 0 && base && FUEL_NIVEL[base] !== undefined) {
       const antes   = FUEL_NIVEL[base];
-      const despues = Math.max(0, antes - glsConsumidos);
+      const despues = Math.max(0, antes - glsDesdeAcopio);
       FUEL_NIVEL[base] = despues;
       enviarASheets({
         tipo: 'combustible', fecha: keyStr,
         hora: new Date().toTimeString().slice(0,5),
         base, heli, mat, gls: 0, drenaje: 0,
-        consumo: glsConsumidos,
+        consumo: glsDesdeAcopio,
         nivelAnt: Math.round(antes), nivelPost: Math.round(despues),
         ref: `Consumo vuelos ${heli} OS:${os}`, obs: ''
       });
@@ -4732,6 +4815,28 @@ function addVueloBloque(n) {
         Esta carga incluye combustible en bidones
       </label>
     </div>
+    <div class="v-reab-campo" style="margin-top:9px;padding:9px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:8px;display:none">
+      <div style="font-size:12px;color:#f59e0b;font-weight:600;margin-bottom:8px">⛽ Reabastecimiento en campo</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="frow" style="margin-bottom:0"><label>Tanque satélite</label>
+          <select class="v-reab-base" style="width:100%">
+            <option value="Camp La Rica">Camp La Rica</option>
+            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Frontino">Frontino</option>
+          </select>
+        </div>
+        <div class="frow" style="margin-bottom:0"><label>GLS despachados</label>
+          <input type="number" class="v-reab-gls" placeholder="0" min="0" step="1" style="width:100%">
+        </div>
+      </div>
+      <div style="font-size:11px;color:#92400e;margin-top:6px">⚠ Registra solo si la aeronave reabastecció desde un tanque satélite — no desde Mutatá</div>
+    </div>
+    <div class="frow" style="margin-bottom:0;margin-top:6px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#f59e0b">
+        <input type="checkbox" class="v-tiene-reab-campo" onchange="toggleReabCampo(this)" style="width:16px;height:16px;cursor:pointer">
+        Reabastecció desde tanque satélite (LR / PA / Frontino)
+      </label>
+    </div>
   `;
   el.appendChild(div);
   // Inicializar selectores hora 24h — igual que addVuelo principal
@@ -4916,6 +5021,28 @@ function addVueloBloqueTask(n, tn) {
         <input type="checkbox" class="v-tiene-traslado" onchange="toggleTrasladoComb(this)" style="width:16px;height:16px;cursor:pointer">
         Esta carga incluye combustible en bidones
       </label>
+    </div>
+    <div class="v-reab-campo" style="margin-top:9px;padding:9px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:8px;display:none">
+      <div style="font-size:12px;color:#f59e0b;font-weight:600;margin-bottom:8px">⛽ Reabastecimiento en campo</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="frow" style="margin-bottom:0"><label>Tanque satélite</label>
+          <select class="v-reab-base" style="width:100%">
+            <option value="Camp La Rica">Camp La Rica</option>
+            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Frontino">Frontino</option>
+          </select>
+        </div>
+        <div class="frow" style="margin-bottom:0"><label>GLS despachados</label>
+          <input type="number" class="v-reab-gls" placeholder="0" min="0" step="1" style="width:100%">
+        </div>
+      </div>
+      <div style="font-size:11px;color:#92400e;margin-top:6px">⚠ Registra solo si la aeronave reabastecció desde un tanque satélite — no desde Mutatá</div>
+    </div>
+    <div class="frow" style="margin-bottom:0;margin-top:6px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:#f59e0b">
+        <input type="checkbox" class="v-tiene-reab-campo" onchange="toggleReabCampo(this)" style="width:16px;height:16px;cursor:pointer">
+        Reabastecció desde tanque satélite (LR / PA / Frontino)
+      </label>
     </div>`;
   el.appendChild(div);
   var wIni = div.querySelector('.v-ini-wrap');
@@ -5013,6 +5140,10 @@ function actualizarMatBloque(sel, matId) {
           origen:  item.querySelector('.v-tcomb-origen')?.value || '',
           destino: item.querySelector('.v-tcomb-destino')?.value || '',
           gls:     parseFloat(item.querySelector('.v-tcomb-gls')?.value)||0
+        } : null,
+        reab_campo: item.querySelector('.v-tiene-reab-campo')?.checked ? {
+          base: item.querySelector('.v-reab-base')?.value || '',
+          gls:  parseFloat(item.querySelector('.v-reab-gls')?.value)||0
         } : null
       });
     });
