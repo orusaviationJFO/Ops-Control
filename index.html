@@ -1,6 +1,15 @@
 <!-- ============================================================
-     Control_helicopteros.html  —  v35
-     Generado: 2026-10-06 COT
+     Control_helicopteros.html  —  v36
+     Generado: 2026-10-11 COT
+     Cambios v36: BUGFIX duplicación de GLS (45 GLS → 90 GLS registrados).
+                  Causa: el campo "GLS tanqueados en esta tarea" (t{n}-gls)
+                  se sumaba a los GLS por vuelo individual (v-gls), duplicando
+                  el valor cuando el SOA llenaba ambos campos con el mismo total.
+                  Fix: si hay GLS en vuelos individuales, esos son el valor real;
+                  el campo de tarea solo se usa como respaldo cuando ningún vuelo
+                  tiene GLS. El payload a Google Sheets también se corrigió para
+                  enviar p.gls=0 cuando los vuelos ya llevan los GLS, evitando
+                  la doble suma en procesarVuelo() de Apps Script.
      Cambios v35: traslados en bidones y reab. campo se auto-registran
                   en el campo Observaciones del vuelo — quedan visibles
                   en bitácora (📝) y en columna Observaciones del GS,
@@ -3514,8 +3523,11 @@ function guardarRegistro() {
     registrosGuardados.push(reg);
 
     // ── Descontar GLS del tanque ─────────────────────────────────────
+    // REGLA: si hay GLS en vuelos individuales, ese es el valor real.
+    // El campo "GLS tanqueados en esta tarea" (gls) es el total de referencia del día;
+    // no se suma a los vuelos individuales para evitar duplicación (bug: 45→90 GLS).
     const glsVuelos = vuelos.reduce((a, v) => a + (v.gls || 0), 0);
-    const glsConsumidos = gls + glsVuelos;
+    const glsConsumidos = glsVuelos > 0 ? glsVuelos : gls;
 
     // Traslados en bidones: mover inventario entre tanques
     vuelos.forEach(v => {
@@ -4174,6 +4186,12 @@ document.addEventListener('change', e => {
   }
 
   function construirPayloadVuelo(registro, fecha) {
+    // REGLA ANTI-DUPLICACIÓN GLS:
+    // Si algún vuelo individual tiene GLS (v-gls), el campo de tarea (p.gls) se envía en 0
+    // para que procesarVuelo() en Apps Script no sume ambos (glsCol = v.gls + p.gls).
+    // Si ningún vuelo tiene GLS, se usa el campo de tarea como valor total.
+    const glsVuelosTotal = (registro.vuelos || []).reduce((a, v) => a + (parseFloat(v.gls) || 0), 0);
+    const glsPayload = glsVuelosTotal > 0 ? 0 : (registro.gls || 0);
     return {
       tipo:      "vuelo",
       fecha:     fecha,
@@ -4187,7 +4205,7 @@ document.addEventListener('change', e => {
       dutyOut:   registro.dutyOut,
       hrsDuty:   calcHrsDuty(registro.dutyIn, registro.dutyOut),
       vuelos:    registro.vuelos,
-      gls:       registro.gls,
+      gls:       glsPayload,
       tank:      registro.tank,
       prog:      registro.prog,
       cumpl:     registro.cumpl,
@@ -5286,8 +5304,9 @@ function actualizarMatBloque(sel, matId) {
     registrosGuardados.push(reg);
 
     // ── Descontar GLS del tanque ─────────────────────────────────────
+    // REGLA ANTI-DUPLICACIÓN: igual que bloque principal.
     const glsVuelos = vuelos.reduce((a,v)=>a+(v.gls||0),0);
-    const glsConsumidos = glsTarea + glsVuelos;
+    const glsConsumidos = glsVuelos > 0 ? glsVuelos : glsTarea;
     if (glsConsumidos > 0 && base && FUEL_NIVEL[base] !== undefined) {
       const antes   = FUEL_NIVEL[base];
       const despues = Math.max(0, antes - glsConsumidos);
@@ -5295,7 +5314,7 @@ function actualizarMatBloque(sel, matId) {
       localStorage.setItem('fuel_nivel_inicial', JSON.stringify(FUEL_NIVEL));
       FUEL_ENTRADAS.unshift({
         fecha: dkey(new Date()), hora: new Date().toTimeString().slice(0,5),
-        base, gls: -glsTarea,
+        base, gls: -glsConsumidos,
         ref: `${heli} · ${mat} — consumo operacional`, tipo: 'consumo'
       });
       const cap = CAPS[base] || 9999;
