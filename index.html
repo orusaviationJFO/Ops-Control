@@ -1,6 +1,14 @@
 <!-- ============================================================
-     Control_helicopteros.html  —  v36
-     Generado: 2026-10-11 COT
+     Control_helicopteros.html  —  v37
+     Generado: 2026-10-13 COT
+     Cambios v37: ANTI-DUPLICADOS en la cola de envío a GS.
+                  Causa (Rubén, 10/10): un envío que GS sí escribió pero cuya
+                  confirmación no llegó al teléfono quedaba en _gsPending y se
+                  reenviaba días después → filas duplicadas en Vuelos.
+                  · Cada envío lleva su id único (payload._id); Código.gs v5.24
+                    lo registra y descarta repetidos (responde ok sin escribir).
+                  · Pendientes con más de 48 h NO se reenvían solos: el aviso
+                    rojo pide revisarlos uno por uno (reenviar o descartar).
      Cambios v36: BUGFIX duplicación de GLS (45 GLS → 90 GLS registrados).
                   Causa: el campo "GLS tanqueados en esta tarea" (t{n}-gls)
                   se sumaba a los GLS por vuelo individual (v-gls), duplicando
@@ -558,7 +566,7 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
 
 <!-- DASHBOARD -->
 <div class="view active" id="view-dashboard">
-<div style="text-align:right;padding:2px 14px 0;"><span id="soa-badge" onclick="cambiarNombreSOA()" style="font-size:11px;color:var(--muted);font-family:var(--mono);cursor:pointer;margin-right:12px" title="Clic para cambiar tu nombre">👤 Sin identificar</span><span id="gs-sync-badge" style="font-size:10px;color:var(--muted);font-family:var(--mono);cursor:pointer" onclick="syncConGS()" title="Toca para sincronizar">⬤ GS --:--</span><span id="gs-pending-badge" onclick="_retryPending()" style="display:none;font-size:10px;color:#c53030;font-family:var(--mono);cursor:pointer;margin-left:8px;background:rgba(229,62,62,0.1);padding:2px 7px;border-radius:10px;border:1px solid rgba(229,62,62,0.3)" title="Registros pendientes — toca para reintentar envío a GS"></span></div>
+<div style="text-align:right;padding:2px 14px 0;"><span id="soa-badge" onclick="cambiarNombreSOA()" style="font-size:11px;color:var(--muted);font-family:var(--mono);cursor:pointer;margin-right:12px" title="Clic para cambiar tu nombre">👤 Sin identificar</span><span id="gs-sync-badge" style="font-size:10px;color:var(--muted);font-family:var(--mono);cursor:pointer" onclick="syncConGS()" title="Toca para sincronizar">⬤ GS --:--</span><span id="gs-pending-badge" onclick="_revisarPendientes()" style="display:none;font-size:10px;color:#c53030;font-family:var(--mono);cursor:pointer;margin-left:8px;background:rgba(229,62,62,0.1);padding:2px 7px;border-radius:10px;border:1px solid rgba(229,62,62,0.3)" title="Registros pendientes — toca para reintentar envío a GS"></span></div>
 
   <!-- ① HORAS TOTALES MES — Hero card -->
   <div style="background:linear-gradient(135deg,#e53e3e,#c53030);border-radius:14px;padding:16px 18px;margin-bottom:12px">
@@ -4071,11 +4079,15 @@ document.addEventListener('change', e => {
   })();
   var _inFlight = new Set(); // IDs actualmente en vuelo — evita envíos paralelos del mismo ítem
   function _savePending(){ try{ localStorage.setItem('_gsPending',JSON.stringify(_gsPending)); }catch(e){} }
+  // v37: pendientes con más de 48 h no se reenvían solos (requieren revisión del SOA)
+  var _PEND_MAX_MS = 48*3600*1000;
+  function _esPendienteViejo(it){ return !it.revisado && (Date.now() - new Date(it.ts).getTime()) > _PEND_MAX_MS; }
   function _updatePendingBadge(){
     var b=document.getElementById('gs-pending-badge');
     if(!b) return;
     if(_gsPending.length>0){
-      b.textContent='⚠ '+_gsPending.length+' pendiente'+(+_gsPending.length>1?'s':'');
+      var _nViejos=_gsPending.filter(_esPendienteViejo).length;
+      b.textContent='⚠ '+_gsPending.length+' pendiente'+(+_gsPending.length>1?'s':'')+(_nViejos?' · revisar':'');
       b.style.display='inline';
     } else { b.style.display='none'; }
   }
@@ -4096,6 +4108,8 @@ document.addEventListener('change', e => {
     } catch(e) {}
     _inFlight.add(item.id);
     item.intentos = (item.intentos||0)+1;
+    // v37: id único del envío → Código.gs v5.24 descarta repetidos
+    if (item.payload && !item.payload._id) { item.payload._id = item.id; _savePending(); }
     var isHttps = window.location.protocol === 'https:';
     try {
       if (isHttps) {
@@ -4148,6 +4162,7 @@ document.addEventListener('change', e => {
     if (!GS_URL || GS_URL === "PEGAR_URL_AQUI") return;
     var item = { id: Date.now()+'_'+Math.random().toString(36).slice(2,7),
                  payload: payload, intentos: 0, ts: new Date().toISOString() };
+    item.payload._id = item.id;   // v37
     _gsPending.push(item); _savePending(); _updatePendingBadge();
     await _enviarItem(item);
   }
@@ -4158,8 +4173,13 @@ document.addEventListener('change', e => {
     // Solo reintentar: (a) ítems con >45 s de antigüedad y (b) que no estén ya en vuelo
     // (45 s da tiempo al send inicial, incluso con cold-start de GAS)
     var items = _gsPending.filter(function(it) {
-      return !_inFlight.has(it.id) && (now - new Date(it.ts).getTime()) > 45000;
+      return !_inFlight.has(it.id) && (now - new Date(it.ts).getTime()) > 45000 && !_esPendienteViejo(it);
     });
+    // v37: avisar (una vez por carga) si hay pendientes viejos sin revisar
+    if (!window._avisoPendViejos && _gsPending.some(_esPendienteViejo)) {
+      window._avisoPendViejos = true;
+      mostrarToast('⚠ Tienes registros sin enviar de hace más de 2 días. Toca el aviso rojo de arriba para revisarlos','err');
+    }
     if (!items.length) return;
     for (var i=0; i<items.length; i++) {
       var it = items[i];
@@ -4172,6 +4192,29 @@ document.addEventListener('change', e => {
       await _enviarItem(it);
       await new Promise(function(r){ setTimeout(r,600); }); // espacio entre reintentos
     }
+  }
+  // v37: revisión manual de pendientes (toque en el aviso rojo)
+  async function _revisarPendientes() {
+    var viejos = _gsPending.filter(_esPendienteViejo);
+    for (var i=0; i<viejos.length; i++) {
+      var it = viejos[i], p = it.payload || {};
+      var desc = (p.tipo||'registro') + ' · ' + (p.fecha||'') +
+                 (p.heli ? ' · ' + p.heli : '') + (p.os ? ' · OS ' + p.os : '') +
+                 (p.vuelos ? ' · ' + p.vuelos.length + ' vuelo(s)' : '');
+      var reenviar = confirm('Registro sin enviar desde ' + String(it.ts).slice(0,16).replace('T',' ') + ':\n' + desc +
+        '\n\nRevisa primero en la bitácora si ese registro YA aparece.' +
+        '\n\nAceptar = reenviar a Google Sheets\nCancelar = descartarlo (no se envía)');
+      if (reenviar) {
+        it.revisado = true; it.intentos = 0; it.ts = new Date().toISOString(); _savePending();
+        await _enviarItem(it);
+      } else {
+        var idx = _gsPending.findIndex(function(q){ return q.id===it.id; });
+        if (idx !== -1) _gsPending.splice(idx,1);
+        _savePending();
+      }
+    }
+    _updatePendingBadge();
+    await _retryPending();
   }
   // Reintentar pendientes al cargar y cada 5 min
   setTimeout(_retryPending, 3000);
