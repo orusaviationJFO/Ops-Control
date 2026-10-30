@@ -1,6 +1,9 @@
 <!-- ============================================================
-     Control_helicopteros.html  —  v37
-     Generado: 2026-10-13 COT
+     Control_helicopteros.html  —  v38
+     Generado: 2026-10-30 COT
+     Cambios v38: "Camp Pantanos" renombrado a "Camp Pantanos 3" en
+                  todos los selectores; se agrega "Camp Pantanos 5"
+                  como nueva opción en todos los mismos desplegables.
      Cambios v37: ANTI-DUPLICADOS en la cola de envío a GS.
                   Causa (Rubén, 10/10): un envío que GS sí escribió pero cuya
                   confirmación no llegó al teléfono quedaba en _gsPending y se
@@ -697,7 +700,8 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
         <option value="La Quiebra">La Quiebra</option>
         <option value="CABI">CABI</option>
         <option value="Aeropuerto SKUI">Aeropuerto SKUI</option>
-        <option value="Camp Pantanos">Camp Pantanos</option>
+        <option value="Camp Pantanos 3">Camp Pantanos 3</option>
+            <option value="Camp Pantanos 5">Camp Pantanos 5</option>
         <option value="Camp La Rica">Camp La Rica</option>
       </select>
     </div>
@@ -1372,7 +1376,8 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
       <div class="frow"><label>Tanque satélite</label>
         <select id="fd-base">
           <option value="Camp La Rica">Camp La Rica</option>
-          <option value="Camp Pantanos">Camp Pantanos</option>
+          <option value="Camp Pantanos 3">Camp Pantanos 3</option>
+            <option value="Camp Pantanos 5">Camp Pantanos 5</option>
           <option value="Frontino">Frontino</option>
         </select>
       </div>
@@ -3256,7 +3261,8 @@ function addVuelo(tareaNum) {
             <option value="Aeropuerto SKUI">Aeropuerto SKUI</option>
           </optgroup>
           <optgroup label="Campamentos">
-            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp Pantanos 3">Camp Pantanos 3</option>
+            <option value="Camp Pantanos 5">Camp Pantanos 5</option>
             <option value="Camp La Rica">Camp La Rica</option>
             <option value="Camp Comitá">Camp Comitá</option>
           </optgroup>
@@ -3281,7 +3287,8 @@ function addVuelo(tareaNum) {
             <option value="Aeropuerto SKUI">Aeropuerto SKUI</option>
           </optgroup>
           <optgroup label="Campamentos">
-            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp Pantanos 3">Camp Pantanos 3</option>
+            <option value="Camp Pantanos 5">Camp Pantanos 5</option>
             <option value="Camp La Rica">Camp La Rica</option>
             <option value="Camp Comitá">Camp Comitá</option>
           </optgroup>
@@ -3323,13 +3330,15 @@ function addVuelo(tareaNum) {
           <select class="v-tcomb-origen" style="width:100%">
             <option value="Mutatá">Mutatá</option>
             <option value="Frontino">Frontino</option>
-            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp Pantanos 3">Camp Pantanos 3</option>
+            <option value="Camp Pantanos 5">Camp Pantanos 5</option>
             <option value="Camp La Rica">Camp La Rica</option>
           </select>
         </div>
         <div class="frow" style="margin-bottom:0"><label>Base destino</label>
           <select class="v-tcomb-destino" style="width:100%">
-            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp Pantanos 3">Camp Pantanos 3</option>
+            <option value="Camp Pantanos 5">Camp Pantanos 5</option>
             <option value="Camp La Rica">Camp La Rica</option>
             <option value="Frontino">Frontino</option>
             <option value="Mutatá">Mutatá</option>
@@ -3352,7 +3361,8 @@ function addVuelo(tareaNum) {
         <div class="frow" style="margin-bottom:0"><label>Tanque satélite</label>
           <select class="v-reab-base" style="width:100%">
             <option value="Camp La Rica">Camp La Rica</option>
-            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp Pantanos 3">Camp Pantanos 3</option>
+            <option value="Camp Pantanos 5">Camp Pantanos 5</option>
             <option value="Frontino">Frontino</option>
           </select>
         </div>
@@ -4760,7 +4770,8 @@ function agregarBloqueHeli() {
             <option value="Mutatá">Mutatá</option>
             <option value="Quibdó">Quibdó</option>
             <option value="La Quiebra">La Quiebra</option>
-            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp Pantanos 3">Camp Pantanos 3</option>
+            <option value="Camp Pantanos 5">Camp Pantanos 5</option>
             <option value="Camp La Rica">Camp La Rica</option>
           </select>
         </div>
@@ -4893,7 +4904,8 @@ function addVueloBloque(n) {
             <option value="Aeropuerto SKUI">Aeropuerto SKUI</option>
           </optgroup>
           <optgroup label="Campamentos">
-            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp Pantanos 3">Camp Pantanos 3</option>
+            <option value="Camp Pantanos 5">Camp Pantanos 5</option>
             <option value="Camp La Rica">Camp La Rica</option>
             <option value="Camp Comitá">Camp Comitá</option>
           </optgroup>
@@ -4918,7 +4930,8 @@ function addVueloBloque(n) {
             <option value="Aeropuerto SKUI">Aeropuerto SKUI</option>
           </optgroup>
           <optgroup label="Campamentos">
-            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp Pantanos 3">Camp Pantanos 3</option>
+            <option value="Camp Pantanos 5">Camp Pantanos 5</option>
             <option value="Camp La Rica">Camp La Rica</option>
             <option value="Camp Comitá">Camp Comitá</option>
           </optgroup>
@@ -4960,13 +4973,15 @@ function addVueloBloque(n) {
           <select class="v-tcomb-origen" style="width:100%">
             <option value="Mutatá">Mutatá</option>
             <option value="Frontino">Frontino</option>
-            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp Pantanos 3">Camp Pantanos 3</option>
+            <option value="Camp Pantanos 5">Camp Pantanos 5</option>
             <option value="Camp La Rica">Camp La Rica</option>
           </select>
         </div>
         <div class="frow" style="margin-bottom:0"><label>Base destino</label>
           <select class="v-tcomb-destino" style="width:100%">
-            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp Pantanos 3">Camp Pantanos 3</option>
+            <option value="Camp Pantanos 5">Camp Pantanos 5</option>
             <option value="Camp La Rica">Camp La Rica</option>
             <option value="Frontino">Frontino</option>
             <option value="Mutatá">Mutatá</option>
@@ -4989,7 +5004,8 @@ function addVueloBloque(n) {
         <div class="frow" style="margin-bottom:0"><label>Tanque satélite</label>
           <select class="v-reab-base" style="width:100%">
             <option value="Camp La Rica">Camp La Rica</option>
-            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp Pantanos 3">Camp Pantanos 3</option>
+            <option value="Camp Pantanos 5">Camp Pantanos 5</option>
             <option value="Frontino">Frontino</option>
           </select>
         </div>
@@ -5100,7 +5116,8 @@ function addVueloBloqueTask(n, tn) {
             <option value="Aeropuerto SKUI">Aeropuerto SKUI</option>
           </optgroup>
           <optgroup label="Campamentos">
-            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp Pantanos 3">Camp Pantanos 3</option>
+            <option value="Camp Pantanos 5">Camp Pantanos 5</option>
             <option value="Camp La Rica">Camp La Rica</option>
             <option value="Camp Comitá">Camp Comitá</option>
           </optgroup>
@@ -5125,7 +5142,8 @@ function addVueloBloqueTask(n, tn) {
             <option value="Aeropuerto SKUI">Aeropuerto SKUI</option>
           </optgroup>
           <optgroup label="Campamentos">
-            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp Pantanos 3">Camp Pantanos 3</option>
+            <option value="Camp Pantanos 5">Camp Pantanos 5</option>
             <option value="Camp La Rica">Camp La Rica</option>
             <option value="Camp Comitá">Camp Comitá</option>
           </optgroup>
@@ -5167,13 +5185,15 @@ function addVueloBloqueTask(n, tn) {
           <select class="v-tcomb-origen" style="width:100%">
             <option value="Mutatá">Mutatá</option>
             <option value="Frontino">Frontino</option>
-            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp Pantanos 3">Camp Pantanos 3</option>
+            <option value="Camp Pantanos 5">Camp Pantanos 5</option>
             <option value="Camp La Rica">Camp La Rica</option>
           </select>
         </div>
         <div class="frow" style="margin-bottom:0"><label>Base destino</label>
           <select class="v-tcomb-destino" style="width:100%">
-            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp Pantanos 3">Camp Pantanos 3</option>
+            <option value="Camp Pantanos 5">Camp Pantanos 5</option>
             <option value="Camp La Rica">Camp La Rica</option>
             <option value="Frontino">Frontino</option>
             <option value="Mutatá">Mutatá</option>
@@ -5196,7 +5216,8 @@ function addVueloBloqueTask(n, tn) {
         <div class="frow" style="margin-bottom:0"><label>Tanque satélite</label>
           <select class="v-reab-base" style="width:100%">
             <option value="Camp La Rica">Camp La Rica</option>
-            <option value="Camp Pantanos">Camp Pantanos</option>
+            <option value="Camp Pantanos 3">Camp Pantanos 3</option>
+            <option value="Camp Pantanos 5">Camp Pantanos 5</option>
             <option value="Frontino">Frontino</option>
           </select>
         </div>
