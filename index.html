@@ -1,11 +1,6 @@
 <!-- ============================================================
-     Control_helicopteros.html  —  v39
-     Generado: 2026-11-08 COT
-     Cambios v39: Piloto Manuel Sánchez agregado a todos los selectores
-                  de piloto (todas las aeronaves en objeto PILOTOS).
-                  BUGFIX selectores vacíos: fetchPilotosGS ya no sobreescribe
-                  los dropdowns si GS retorna lista vacía; inicializarPilotos()
-                  ahora carga pilotos y copilotos desde PILOTOS como respaldo.
+     Control_helicopteros.html  —  v38
+     Generado: 2026-10-30 COT
      Cambios v38: "Camp Pantanos" renombrado a "Camp Pantanos 3" en
                   todos los selectores; se agrega "Camp Pantanos 5"
                   como nueva opción en todos los mismos desplegables.
@@ -664,7 +659,7 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
     </div>
     <div class="f2">
       <div class="frow"><label>Helicóptero</label>
-        <select id="f-heli">
+        <select id="f-heli" onchange="actualizarMat(this);recalcFTL()">
           <option value="">Seleccionar…</option>
           <optgroup label="Bell 412">
             <option value="BELL 412|HK-4767">Bell 412 · HK-4767</option>
@@ -3035,11 +3030,11 @@ let vCount = 0;
 
 // ── Roster de pilotos por aeronave ──
 const PILOTOS = {
-  'KOALA':      { pilotos: ['Cruz','Zuñiga','Murcia','Sánchez'],                                                              copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
-  'BK117':      { pilotos: ['Lopez','Acosta','Sánchez'],                                                                      copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
-  'BELL 412':   { pilotos: ['Hodek','Bernal','Maldonado','Lara','Ibañez','Delgado','Sánchez'],                                copilotos: ['Cristancho','Fierro','Fonseca','Rivera','Antolinez'],   instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
-  'BELL 206L3': { pilotos: ['Cruz','Zuñiga','Murcia','Lopez','Acosta','Sánchez'],                                             copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
-  'BELL 206L4': { pilotos: ['Cruz','Zuñiga','Murcia','Lopez','Acosta','Sánchez'],                                             copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
+  'KOALA':      { pilotos: ['Cruz','Zuñiga','Murcia'],                                                                        copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
+  'BK117':      { pilotos: ['Lopez','Acosta'],                                                                                copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
+  'BELL 412':   { pilotos: ['Hodek','Bernal','Maldonado','Lara','Ibañez','Delgado'],                                         copilotos: ['Cristancho','Fierro','Fonseca','Rivera','Antolinez'],   instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
+  'BELL 206L3': { pilotos: ['Cruz','Zuñiga','Murcia','Lopez','Acosta'],                                                       copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
+  'BELL 206L4': { pilotos: ['Cruz','Zuñiga','Murcia','Lopez','Acosta'],                                                       copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
 };
 
 function actualizarMat(sel) {
@@ -3156,19 +3151,16 @@ function agregarNuevoInstructor() {
 
 // Inicializar selectors de piloto al cargar la página
 function inicializarPilotos() {
-  // Incluir pilotos y copilotos en ambos selectores para garantizar lista completa
-  // independientemente de si fetchPilotosGS aún no respondió o retornó vacío
-  const todosPilotos   = [...new Set(Object.values(PILOTOS).flatMap(r => r.pilotos))].sort();
-  const todosCopilotos = [...new Set(Object.values(PILOTOS).flatMap(r => r.copilotos))].sort();
+  const todos = [...new Set(Object.values(PILOTOS).flatMap(r => r.pilotos))].sort();
   const fpil = document.getElementById('f-piloto');
   if (fpil) {
     fpil.innerHTML = '<option value="">— seleccionar piloto —</option>' +
-      todosPilotos.map(p => `<option value="${p}">${p}</option>`).join('');
+      todos.map(p => `<option value="${p}">${p}</option>`).join('');
   }
   const fcop = document.getElementById('f-copiloto');
   if (fcop) {
     fcop.innerHTML = '<option value="N/A">N/A — Single pilot</option>' +
-      todosCopilotos.map(p => `<option value="${p}">${p}</option>`).join('');
+      todos.map(p => `<option value="${p}">${p}</option>`).join('');
     fcop.value = 'N/A';
   }
 }
@@ -4314,17 +4306,6 @@ refreshAll();
 actualizarInfoRespaldo();
 initInstructorSelect();
 inicializarPilotos();
-// Registrar listener de f-heli aquí (no como onchange inline)
-// para garantizar que PILOTOS ya esté definido cuando dispare
-(function() {
-  var fheli = document.getElementById('f-heli');
-  if (fheli) {
-    fheli.addEventListener('change', function() {
-      actualizarMat(this);
-      recalcFTL();
-    });
-  }
-})();
 iniciarSyncGS();
 renderNivelInicial();
 inicializarSOA();
@@ -5853,15 +5834,15 @@ function fetchNivelesGS(mes) {
 }
 
 // ── Fetch pilotos desde GS (hoja Pilotos) ────────────────────────
-// LÓGICA: GS es complemento, nunca reemplazo.
-// Los pilotos del objeto PILOTOS (hardcoded) siempre están disponibles.
-// Los que llegan de GS se agregan al objeto si son nuevos, luego se
-// llama inicializarPilotos() para refrescar los selectores sin race condition.
 function fetchPilotosGS() {
   fetch(GS_URL + '?action=pilotos', { mode: 'cors', redirect: 'follow' })
     .then(function(r){ return r.json(); })
     .then(function(data) {
-      if (!data || !data.ok || !Array.isArray(data.pilotos) || data.pilotos.length === 0) return;
+      if (!data || !data.ok || !Array.isArray(data.pilotos)) return;
+
+      var solopilotos      = [];
+      var solocopilotos    = [];
+      var soloinstructores = [];
 
       data.pilotos.forEach(function(p) {
         var nombre = (p.nombre || '').trim();
@@ -5869,33 +5850,59 @@ function fetchPilotosGS() {
         var nu = nombre.toUpperCase();
         if (nu.includes('TOTAL') || nu.includes('RESUMEN') || nu.includes('PROMEDIO')) return;
 
+        // Columna Tipo del GS es la fuente de verdad
         var tipo = (p.tipo || '').toLowerCase().trim();
+
+        // Fallback a listas globales si el GS no tiene Tipo aún
         if (!tipo) {
-          if (COPILOTOS_CONOCIDOS.includes(nombre))         tipo = 'copiloto';
+          if (COPILOTOS_CONOCIDOS.includes(nombre))    tipo = 'copiloto';
           else if (INSTRUCTORES_CONOCIDOS.includes(nombre)) tipo = 'instructor';
-          else                                               tipo = 'piloto';
+          else tipo = 'piloto';
         }
 
-        // Merge en PILOTOS: agregar a todas las aeronaves si no existe aún
-        Object.values(PILOTOS).forEach(function(r) {
-          if (tipo === 'copiloto') {
-            if (!r.copilotos.includes(nombre)) r.copilotos.push(nombre);
-          } else if (tipo === 'instructor') {
-            if (!r.instructores.includes(nombre)) r.instructores.push(nombre);
-          } else {
-            if (!r.pilotos.includes(nombre)) r.pilotos.push(nombre);
-          }
-        });
+        if      (tipo === 'copiloto')    solocopilotos.push(nombre);
+        else if (tipo === 'instructor')  soloinstructores.push(nombre);
+        else                             solopilotos.push(nombre);
       });
 
-      // Refrescar selectores preservando selección actual
-      var prevPil = (document.getElementById('f-piloto')    || {}).value;
-      var prevCop = (document.getElementById('f-copiloto')  || {}).value;
-      var prevIns = (document.getElementById('f-instructor')|| {}).value;
-      inicializarPilotos();
-      if (prevPil) { var el = document.getElementById('f-piloto');     if (el) el.value = prevPil; }
-      if (prevCop) { var el = document.getElementById('f-copiloto');   if (el) el.value = prevCop; }
-      if (prevIns) { var el = document.getElementById('f-instructor'); if (el) el.value = prevIns; }
+      // Garantizar que las listas globales estén representadas aunque no estén en el GS
+      COPILOTOS_CONOCIDOS.forEach(function(c){
+        if (!solocopilotos.includes(c)) solocopilotos.push(c);
+      });
+      INSTRUCTORES_CONOCIDOS.forEach(function(i){
+        if (!soloinstructores.includes(i)) soloinstructores.push(i);
+      });
+
+      solopilotos.sort();
+      solocopilotos.sort();
+      soloinstructores.sort();
+
+      // Actualizar selector de pilotos
+      var fpil = document.getElementById('f-piloto');
+      if (fpil) {
+        var valorAnteriorPil = fpil.value;
+        fpil.innerHTML = '<option value="">— seleccionar piloto —</option>' +
+          solopilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+        if (valorAnteriorPil) fpil.value = valorAnteriorPil;
+      }
+
+      // Actualizar selector de copilotos
+      var fcop = document.getElementById('f-copiloto');
+      if (fcop) {
+        var valorAnteriorCop = fcop.value;
+        fcop.innerHTML = '<option value="N/A">N/A — Single pilot</option>' +
+          solocopilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+        if (valorAnteriorCop) fcop.value = valorAnteriorCop;
+      }
+
+      // Actualizar selector de instructor
+      var fins = document.getElementById('f-instructor');
+      if (fins) {
+        var valorAnteriorIns = fins.value;
+        fins.innerHTML = '<option value="N/A">N/A — Sin instructor</option>' +
+          soloinstructores.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
+        if (valorAnteriorIns) fins.value = valorAnteriorIns;
+      }
     }).catch(function(){});
 }
 
