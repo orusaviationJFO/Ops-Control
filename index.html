@@ -5842,15 +5842,15 @@ function fetchNivelesGS(mes) {
 }
 
 // ── Fetch pilotos desde GS (hoja Pilotos) ────────────────────────
+// LÓGICA: GS es complemento, nunca reemplazo.
+// Los pilotos del objeto PILOTOS (hardcoded) siempre están disponibles.
+// Los que llegan de GS se agregan al objeto si son nuevos, luego se
+// llama inicializarPilotos() para refrescar los selectores sin race condition.
 function fetchPilotosGS() {
   fetch(GS_URL + '?action=pilotos', { mode: 'cors', redirect: 'follow' })
     .then(function(r){ return r.json(); })
     .then(function(data) {
-      if (!data || !data.ok || !Array.isArray(data.pilotos)) return;
-
-      var solopilotos      = [];
-      var solocopilotos    = [];
-      var soloinstructores = [];
+      if (!data || !data.ok || !Array.isArray(data.pilotos) || data.pilotos.length === 0) return;
 
       data.pilotos.forEach(function(p) {
         var nombre = (p.nombre || '').trim();
@@ -5858,62 +5858,33 @@ function fetchPilotosGS() {
         var nu = nombre.toUpperCase();
         if (nu.includes('TOTAL') || nu.includes('RESUMEN') || nu.includes('PROMEDIO')) return;
 
-        // Columna Tipo del GS es la fuente de verdad
         var tipo = (p.tipo || '').toLowerCase().trim();
-
-        // Fallback a listas globales si el GS no tiene Tipo aún
         if (!tipo) {
-          if (COPILOTOS_CONOCIDOS.includes(nombre))    tipo = 'copiloto';
+          if (COPILOTOS_CONOCIDOS.includes(nombre))         tipo = 'copiloto';
           else if (INSTRUCTORES_CONOCIDOS.includes(nombre)) tipo = 'instructor';
-          else tipo = 'piloto';
+          else                                               tipo = 'piloto';
         }
 
-        if      (tipo === 'copiloto')    solocopilotos.push(nombre);
-        else if (tipo === 'instructor')  soloinstructores.push(nombre);
-        else                             solopilotos.push(nombre);
+        // Merge en PILOTOS: agregar a todas las aeronaves si no existe aún
+        Object.values(PILOTOS).forEach(function(r) {
+          if (tipo === 'copiloto') {
+            if (!r.copilotos.includes(nombre)) r.copilotos.push(nombre);
+          } else if (tipo === 'instructor') {
+            if (!r.instructores.includes(nombre)) r.instructores.push(nombre);
+          } else {
+            if (!r.pilotos.includes(nombre)) r.pilotos.push(nombre);
+          }
+        });
       });
 
-      // Garantizar que las listas globales estén representadas aunque no estén en el GS
-      COPILOTOS_CONOCIDOS.forEach(function(c){
-        if (!solocopilotos.includes(c)) solocopilotos.push(c);
-      });
-      INSTRUCTORES_CONOCIDOS.forEach(function(i){
-        if (!soloinstructores.includes(i)) soloinstructores.push(i);
-      });
-
-      solopilotos.sort();
-      solocopilotos.sort();
-      soloinstructores.sort();
-
-      // GUARDIA: si GS devuelve listas vacías, no sobreescribir los selectores
-      // (evita dejar los dropdowns en blanco cuando el endpoint falla silenciosamente)
-
-      // Actualizar selector de pilotos
-      var fpil = document.getElementById('f-piloto');
-      if (fpil && solopilotos.length > 0) {
-        var valorAnteriorPil = fpil.value;
-        fpil.innerHTML = '<option value="">— seleccionar piloto —</option>' +
-          solopilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
-        if (valorAnteriorPil) fpil.value = valorAnteriorPil;
-      }
-
-      // Actualizar selector de copilotos
-      var fcop = document.getElementById('f-copiloto');
-      if (fcop && solocopilotos.length > 0) {
-        var valorAnteriorCop = fcop.value;
-        fcop.innerHTML = '<option value="N/A">N/A — Single pilot</option>' +
-          solocopilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
-        if (valorAnteriorCop) fcop.value = valorAnteriorCop;
-      }
-
-      // Actualizar selector de instructor
-      var fins = document.getElementById('f-instructor');
-      if (fins && soloinstructores.length > 0) {
-        var valorAnteriorIns = fins.value;
-        fins.innerHTML = '<option value="N/A">N/A — Sin instructor</option>' +
-          soloinstructores.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
-        if (valorAnteriorIns) fins.value = valorAnteriorIns;
-      }
+      // Refrescar selectores preservando selección actual
+      var prevPil = (document.getElementById('f-piloto')    || {}).value;
+      var prevCop = (document.getElementById('f-copiloto')  || {}).value;
+      var prevIns = (document.getElementById('f-instructor')|| {}).value;
+      inicializarPilotos();
+      if (prevPil) { var el = document.getElementById('f-piloto');     if (el) el.value = prevPil; }
+      if (prevCop) { var el = document.getElementById('f-copiloto');   if (el) el.value = prevCop; }
+      if (prevIns) { var el = document.getElementById('f-instructor'); if (el) el.value = prevIns; }
     }).catch(function(){});
 }
 
