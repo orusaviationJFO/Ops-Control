@@ -664,7 +664,7 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
     </div>
     <div class="f2">
       <div class="frow"><label>Helicóptero</label>
-        <select id="f-heli" onchange="actualizarMat(this);recalcFTL()">
+        <select id="f-heli">
           <option value="">Seleccionar…</option>
           <optgroup label="Bell 412">
             <option value="BELL 412|HK-4767">Bell 412 · HK-4767</option>
@@ -4314,6 +4314,17 @@ refreshAll();
 actualizarInfoRespaldo();
 initInstructorSelect();
 inicializarPilotos();
+// Registrar listener de f-heli aquí (no como onchange inline)
+// para garantizar que PILOTOS ya esté definido cuando dispare
+(function() {
+  var fheli = document.getElementById('f-heli');
+  if (fheli) {
+    fheli.addEventListener('change', function() {
+      actualizarMat(this);
+      recalcFTL();
+    });
+  }
+})();
 iniciarSyncGS();
 renderNivelInicial();
 inicializarSOA();
