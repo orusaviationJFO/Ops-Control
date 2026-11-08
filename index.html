@@ -3,6 +3,9 @@
      Generado: 2026-11-08 COT
      Cambios v39: Piloto Manuel Sánchez agregado a todos los selectores
                   de piloto (todas las aeronaves en objeto PILOTOS).
+                  BUGFIX selectores vacíos: fetchPilotosGS ya no sobreescribe
+                  los dropdowns si GS retorna lista vacía; inicializarPilotos()
+                  ahora carga pilotos y copilotos desde PILOTOS como respaldo.
      Cambios v38: "Camp Pantanos" renombrado a "Camp Pantanos 3" en
                   todos los selectores; se agrega "Camp Pantanos 5"
                   como nueva opción en todos los mismos desplegables.
@@ -3153,16 +3156,19 @@ function agregarNuevoInstructor() {
 
 // Inicializar selectors de piloto al cargar la página
 function inicializarPilotos() {
-  const todos = [...new Set(Object.values(PILOTOS).flatMap(r => r.pilotos))].sort();
+  // Incluir pilotos y copilotos en ambos selectores para garantizar lista completa
+  // independientemente de si fetchPilotosGS aún no respondió o retornó vacío
+  const todosPilotos   = [...new Set(Object.values(PILOTOS).flatMap(r => r.pilotos))].sort();
+  const todosCopilotos = [...new Set(Object.values(PILOTOS).flatMap(r => r.copilotos))].sort();
   const fpil = document.getElementById('f-piloto');
   if (fpil) {
     fpil.innerHTML = '<option value="">— seleccionar piloto —</option>' +
-      todos.map(p => `<option value="${p}">${p}</option>`).join('');
+      todosPilotos.map(p => `<option value="${p}">${p}</option>`).join('');
   }
   const fcop = document.getElementById('f-copiloto');
   if (fcop) {
     fcop.innerHTML = '<option value="N/A">N/A — Single pilot</option>' +
-      todos.map(p => `<option value="${p}">${p}</option>`).join('');
+      todosCopilotos.map(p => `<option value="${p}">${p}</option>`).join('');
     fcop.value = 'N/A';
   }
 }
@@ -5879,9 +5885,12 @@ function fetchPilotosGS() {
       solocopilotos.sort();
       soloinstructores.sort();
 
+      // GUARDIA: si GS devuelve listas vacías, no sobreescribir los selectores
+      // (evita dejar los dropdowns en blanco cuando el endpoint falla silenciosamente)
+
       // Actualizar selector de pilotos
       var fpil = document.getElementById('f-piloto');
-      if (fpil) {
+      if (fpil && solopilotos.length > 0) {
         var valorAnteriorPil = fpil.value;
         fpil.innerHTML = '<option value="">— seleccionar piloto —</option>' +
           solopilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
@@ -5890,7 +5899,7 @@ function fetchPilotosGS() {
 
       // Actualizar selector de copilotos
       var fcop = document.getElementById('f-copiloto');
-      if (fcop) {
+      if (fcop && solocopilotos.length > 0) {
         var valorAnteriorCop = fcop.value;
         fcop.innerHTML = '<option value="N/A">N/A — Single pilot</option>' +
           solocopilotos.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
@@ -5899,7 +5908,7 @@ function fetchPilotosGS() {
 
       // Actualizar selector de instructor
       var fins = document.getElementById('f-instructor');
-      if (fins) {
+      if (fins && soloinstructores.length > 0) {
         var valorAnteriorIns = fins.value;
         fins.innerHTML = '<option value="N/A">N/A — Sin instructor</option>' +
           soloinstructores.map(function(p){ return '<option value="'+p+'">'+p+'</option>'; }).join('');
