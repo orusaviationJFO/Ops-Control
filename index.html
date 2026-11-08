@@ -1,6 +1,8 @@
 <!-- ============================================================
-     Control_helicopteros.html  —  v38
-     Generado: 2026-10-30 COT
+     Control_helicopteros.html  —  v39
+     Generado: 2026-11-08 COT
+     Cambios v39: Piloto Manuel Sánchez agregado a todos los selectores
+                  de piloto (todas las aeronaves en objeto PILOTOS).
      Cambios v38: "Camp Pantanos" renombrado a "Camp Pantanos 3" en
                   todos los selectores; se agrega "Camp Pantanos 5"
                   como nueva opción en todos los mismos desplegables.
@@ -3030,11 +3032,11 @@ let vCount = 0;
 
 // ── Roster de pilotos por aeronave ──
 const PILOTOS = {
-  'KOALA':      { pilotos: ['Cruz','Zuñiga','Murcia'],                                                                        copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
-  'BK117':      { pilotos: ['Lopez','Acosta'],                                                                                copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
-  'BELL 412':   { pilotos: ['Hodek','Bernal','Maldonado','Lara','Ibañez','Delgado'],                                         copilotos: ['Cristancho','Fierro','Fonseca','Rivera','Antolinez'],   instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
-  'BELL 206L3': { pilotos: ['Cruz','Zuñiga','Murcia','Lopez','Acosta'],                                                       copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
-  'BELL 206L4': { pilotos: ['Cruz','Zuñiga','Murcia','Lopez','Acosta'],                                                       copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
+  'KOALA':      { pilotos: ['Cruz','Zuñiga','Murcia','Sánchez'],                                                              copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
+  'BK117':      { pilotos: ['Lopez','Acosta','Sánchez'],                                                                      copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
+  'BELL 412':   { pilotos: ['Hodek','Bernal','Maldonado','Lara','Ibañez','Delgado','Sánchez'],                                copilotos: ['Cristancho','Fierro','Fonseca','Rivera','Antolinez'],   instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
+  'BELL 206L3': { pilotos: ['Cruz','Zuñiga','Murcia','Lopez','Acosta','Sánchez'],                                             copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
+  'BELL 206L4': { pilotos: ['Cruz','Zuñiga','Murcia','Lopez','Acosta','Sánchez'],                                             copilotos: [],                    instructores: ['Lara','Berbesi','Cruz','Marín','Sandoval','Díaz'] },
 };
 
 function actualizarMat(sel) {
