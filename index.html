@@ -475,6 +475,27 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
     
 
 <!-- ═══════════════ MONITOR EN TIEMPO REAL ═══════════════ -->
+<div class="view" id="view-pendientes">
+  <div class="scroll-area">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-size:18px;font-weight:700;color:var(--text)">📤 Envíos pendientes a GS</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Registros guardados en este dispositivo que aún no llegaron a Google Sheets</div>
+      </div>
+      <button onclick="showTab('dashboard',document.querySelector('.tab'))" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer">← Volver</button>
+    </div>
+    <div id="pend-lista" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div id="pend-vacio" style="display:none;text-align:center;padding:40px 0;color:var(--muted);font-size:14px">✅ Sin pendientes — todos los registros llegaron a GS</div>
+    <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">
+      <button id="pend-btn-reenviar-todos" onclick="_reenviarTodosPendientes()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer">↺ Reenviar todos</button>
+      <button id="pend-btn-descartar-viejos" onclick="_descartarViejosPendientes()" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:8px;padding:10px 20px;font-size:14px;cursor:pointer">🗑 Descartar viejos (+48 h)</button>
+    </div>
+    <div style="margin-top:16px;padding:12px;background:rgba(255,200,50,.07);border-radius:8px;border:1px solid rgba(255,200,50,.2);font-size:12px;color:var(--muted);line-height:1.6">
+      <strong style="color:var(--yellow)">⚠ Antes de reenviar:</strong> revisa en la Bitácora si el registro ya aparece. Si ya está, descártalo — reenviarlo lo duplicaría en GS.
+    </div>
+  </div>
+</div>
+
 <div class="view" id="view-monitor">
   <div class="scroll-area">
 
@@ -4007,9 +4028,14 @@ document.addEventListener('change', e => {
     var b=document.getElementById('gs-pending-badge');
     if(!b) return;
     if(_gsPending.length>0){
-      var _nViejos=_gsPending.filter(_esPendienteViejo).length;
-      b.textContent='⚠ '+_gsPending.length+' pendiente'+(+_gsPending.length>1?'s':'')+(_nViejos?' · revisar':'');
+      var nViejos=_gsPending.filter(_esPendienteViejo).length;
+      var txt='📤 '+_gsPending.length+' pendiente'+(_gsPending.length>1?'s':'');
+      if(nViejos>0) txt+=' · ⚠ '+nViejos+' sin enviar +48h';
+      b.textContent=txt;
       b.style.display='inline';
+      b.style.color= nViejos>0 ? '#c53030' : '#c07000';
+      b.style.background= nViejos>0 ? 'rgba(229,62,62,0.1)' : 'rgba(255,200,50,0.1)';
+      b.style.border= nViejos>0 ? '1px solid rgba(229,62,62,0.3)' : '1px solid rgba(255,200,50,0.3)';
     } else { b.style.display='none'; }
   }
 
@@ -4114,28 +4140,91 @@ document.addEventListener('change', e => {
       await new Promise(function(r){ setTimeout(r,600); }); // espacio entre reintentos
     }
   }
-  // v37: revisión manual de pendientes (toque en el aviso rojo)
-  async function _revisarPendientes() {
-    var viejos = _gsPending.filter(_esPendienteViejo);
-    for (var i=0; i<viejos.length; i++) {
-      var it = viejos[i], p = it.payload || {};
-      var desc = (p.tipo||'registro') + ' · ' + (p.fecha||'') +
-                 (p.heli ? ' · ' + p.heli : '') + (p.os ? ' · OS ' + p.os : '') +
-                 (p.vuelos ? ' · ' + p.vuelos.length + ' vuelo(s)' : '');
-      var reenviar = confirm('Registro sin enviar desde ' + String(it.ts).slice(0,16).replace('T',' ') + ':\n' + desc +
-        '\n\nRevisa primero en la bitácora si ese registro YA aparece.' +
-        '\n\nAceptar = reenviar a Google Sheets\nCancelar = descartarlo (no se envía)');
-      if (reenviar) {
-        it.revisado = true; it.intentos = 0; it.ts = new Date().toISOString(); _savePending();
-        await _enviarItem(it);
-      } else {
-        var idx = _gsPending.findIndex(function(q){ return q.id===it.id; });
-        if (idx !== -1) _gsPending.splice(idx,1);
-        _savePending();
-      }
+  // Panel de pendientes — abre la vista en lugar de usar confirm()
+  function _revisarPendientes() {
+    _renderPanelPendientes();
+    showTab('pendientes', null);
+  }
+
+  function _descPendiente(it) {
+    var p = it.payload || {};
+    var tipo = p.tipo === 'vuelo' ? '✈ Vuelo' : p.tipo === 'combustible' ? '⛽ Combustible' : p.tipo === 'nivel_combustible' ? '📊 Nivel tanque' : (p.tipo || 'Registro');
+    var partes = [tipo];
+    if (p.fecha) partes.push(p.fecha);
+    if (p.heli)  partes.push(p.heli);
+    if (p.os)    partes.push('OS ' + p.os);
+    if (p.vuelos) partes.push(p.vuelos.length + ' pierna(s)');
+    if (p.base)  partes.push(p.base);
+    return partes.join(' · ');
+  }
+
+  function _renderPanelPendientes() {
+    var lista = document.getElementById('pend-lista');
+    var vacio = document.getElementById('pend-vacio');
+    if (!lista) return;
+    lista.innerHTML = '';
+    if (_gsPending.length === 0) {
+      if (vacio) vacio.style.display = 'block';
+      return;
     }
+    if (vacio) vacio.style.display = 'none';
+    _gsPending.forEach(function(it) {
+      var esViejo = _esPendienteViejo(it);
+      var tsStr = String(it.ts || '').slice(0, 16).replace('T', ' ');
+      var card = document.createElement('div');
+      card.style.cssText = 'background:var(--card);border:1px solid ' + (esViejo ? 'rgba(229,62,62,0.4)' : 'var(--border)') + ';border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px';
+      card.innerHTML =
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">' +
+          '<div>' +
+            '<div style="font-size:13px;font-weight:600;color:var(--text)">' + _descPendiente(it) + '</div>' +
+            '<div style="font-size:11px;color:var(--muted);margin-top:3px">Guardado: ' + tsStr + (esViejo ? ' <span style="color:var(--red);font-weight:600">· +48 h sin enviar</span>' : '') + '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:8px;flex-shrink:0">' +
+            '<button data-id="' + it.id + '" onclick="_reenviarPendiente(this)" style="background:var(--accent);color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer">↺ Reenviar</button>' +
+            '<button data-id="' + it.id + '" onclick="_descartarPendiente(this)" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:7px;padding:6px 12px;font-size:12px;cursor:pointer">🗑</button>' +
+          '</div>' +
+        '</div>';
+      lista.appendChild(card);
+    });
+  }
+
+  async function _reenviarPendiente(btn) {
+    var id = btn.getAttribute('data-id');
+    var it = _gsPending.find(function(q){ return q.id === id; });
+    if (!it) return;
+    btn.disabled = true; btn.textContent = '⏳';
+    it.revisado = true; it.intentos = 0; it.ts = new Date().toISOString();
+    _savePending();
+    await _enviarItem(it);
     _updatePendingBadge();
+    _renderPanelPendientes();
+  }
+
+  function _descartarPendiente(btn) {
+    var id = btn.getAttribute('data-id');
+    var idx = _gsPending.findIndex(function(q){ return q.id === id; });
+    if (idx !== -1) { _gsPending.splice(idx, 1); _savePending(); }
+    _updatePendingBadge();
+    _renderPanelPendientes();
+  }
+
+  async function _reenviarTodosPendientes() {
+    var items = _gsPending.slice();
+    for (var i = 0; i < items.length; i++) {
+      items[i].revisado = true; items[i].intentos = 0;
+      items[i].ts = new Date().toISOString();
+    }
+    _savePending();
     await _retryPending();
+    _updatePendingBadge();
+    _renderPanelPendientes();
+  }
+
+  function _descartarViejosPendientes() {
+    _gsPending = _gsPending.filter(function(it){ return !_esPendienteViejo(it); });
+    _savePending();
+    _updatePendingBadge();
+    _renderPanelPendientes();
   }
   // Reintentar pendientes al cargar y cada 5 min
   setTimeout(_retryPending, 3000);
