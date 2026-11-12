@@ -566,7 +566,7 @@ label{font-size:var(--fs-sm);font-weight:600;color:var(--text);margin-bottom:4px
         color:#1d4ed8;
         display:inline-block;
       ">v43</div>
-      <span id="gs-pending-badge" onclick="_revisarPendientes()" style="display:none;font-family:var(--mono);font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;background:#ffffff;box-shadow:0 1px 4px rgba(0,0,0,0.15);color:#c07000;cursor:pointer;border:1px solid rgba(255,200,50,0.5)" title="Registros pendientes — toca para revisar"></span>
+      <span id="gs-pending-badge" onclick="_revisarPendientes()" style="display:none;font-family:var(--mono);font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;background:#ffffff;box-shadow:0 1px 4px rgba(0,0,0,0.15);color:#c53030;cursor:pointer;" title="Registros pendientes — toca para revisar"></span>
     </div>
     <div style="font-family:var(--mono);font-size:13px;color:rgba(255,255,255,0.9)" id="now-time"></div>
   </div>
@@ -4047,8 +4047,8 @@ document.addEventListener('change', e => {
       b.textContent=txt;
       b.style.display='inline';
       b.style.color= nViejos>0 ? '#c53030' : '#c07000';
-      b.style.background= nViejos>0 ? 'rgba(229,62,62,0.1)' : 'rgba(255,200,50,0.1)';
-      b.style.border= nViejos>0 ? '1px solid rgba(229,62,62,0.3)' : '1px solid rgba(255,200,50,0.3)';
+      b.style.background='#ffffff';
+      b.style.border='none';
     } else { b.style.display='none'; }
   }
 
