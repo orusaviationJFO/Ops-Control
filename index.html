@@ -4046,8 +4046,8 @@ document.addEventListener('change', e => {
       if(nViejos>0) txt+=' · ⚠ '+nViejos+' sin enviar +48h';
       b.textContent=txt;
       b.style.display='inline';
-      b.style.color= '#ffffff';
-      b.style.background= nViejos>0 ? '#991b1b' : '#b45309';
+      b.style.color= nViejos>0 ? '#fde68a' : '#7c2d12';
+      b.style.background= nViejos>0 ? '#991b1b' : '#fde68a';
       b.style.border='none';
     } else { b.style.display='none'; }
   }
